@@ -264,7 +264,7 @@ img.av { object-fit: cover; }
   function render(s) {
     var running = s.gameRunning, rt = s.runtimeRunning, conn = s.connected, launching = !!s.launching;
     var local = s.mode === 'local', join = s.mode === 'join', both = running && s.game2Running;
-    var canConnect = local ? (both && !rt) : (running && !!s.myId && !rt);
+    var canConnect = (local ? (both && !rt) : (running && !!s.myId && !rt)) && !!s.saveLoaded;
     var relayMissing = local && s.relayAvailable === false;
     var other = local ? 'Window 2' : join ? 'Host' : 'Friend';
     var otherRole = join ? 'Sora · host' : 'Sora clone';
@@ -283,7 +283,7 @@ img.av { object-fit: cover; }
     else if (rt) setChip(cs, 'amber', local ? 'Linking the two games…' : join ? 'Joining…' : 'Hosting');
     else if (local && both) setChip(cs, 'amber', 'Two games up');
     else if (local && running) setChip(cs, 'amber', 'Second game starting');
-    else if (running && s.myId) setChip(cs, 'amber', 'Ready to connect');
+    else if (running && s.myId) setChip(cs, 'amber', s.saveLoaded ? 'Ready to connect' : 'Waiting for save');
     else if (running) setChip(cs, 'amber', 'Waiting for Steam');
     else if (launching) setChip(cs, 'amber', 'Starting…');
     else setChip(cs, '', 'Not running');
@@ -343,7 +343,7 @@ img.av { object-fit: cover; }
     $('btnStartText').textContent = launching ? 'Starting…' : local ? 'Start two games' : join ? 'Start and join' : 'Start and host';
     bc.classList.toggle('hide', !running);
     bc.disabled = !canConnect;
-    bc.textContent = local ? (both ? 'Connect both' : 'Second game starting…') : (s.myId ? (join ? 'Join host' : 'Start hosting') : 'Waiting for Steam…');
+    bc.textContent = local ? (!both ? 'Second game starting…' : s.saveLoaded ? 'Connect both' : 'Load a save in both…') : (!s.myId ? 'Waiting for Steam…' : !s.saveLoaded ? 'Load your save…' : join ? 'Join host' : 'Start hosting');
     $('btnCloseGame').classList.toggle('hide', !running);
 
     // session dock

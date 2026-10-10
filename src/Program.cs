@@ -164,6 +164,8 @@ namespace KH2Coop
 
         // state
         public int GamePid, GamePid2;
+        int fieldPid, fieldPid2; // game PIDs whose DLL logged "[field] save loaded"
+        public bool SaveLoaded { get { return GamePid != 0 && fieldPid == GamePid && (Mode != "local" || (GamePid2 != 0 && fieldPid2 == GamePid2)); } }
         public string MyId = "", Problem = "", Update = "", UpdateText = "", Notes = "";
         public bool Updating, Launching, Connected;
         public int? Ping; public string Loss;
@@ -268,7 +270,7 @@ namespace KH2Coop
                 { "gameRunning", GameAlive }, { "gamePid", GamePid }, { "myId", MyId }, { "launching", Launching },
                 { "game2Running", Game2Alive }, { "gamePid2", GamePid2 }, { "relayAvailable", File.Exists(Relay) },
                 { "runtimeRunning", RuntimeAlive }, { "connected", Connected }, { "ping", Ping }, { "loss", Loss }, { "problem", Problem },
-                { "native", true }, { "lines", l }, { "recent", new List<string>(Recent) }, { "names", NamesSnapshot() },
+                { "native", true }, { "saveLoaded", SaveLoaded }, { "lines", l }, { "recent", new List<string>(Recent) }, { "names", NamesSnapshot() },
                 { "world", World }, { "room", Room }, { "tiled", tiled }
             };
             return json.Serialize(d);
@@ -498,6 +500,20 @@ namespace KH2Coop
             }
             else Log("KH2 started (PID " + GamePid + "). Waiting for the Steam session (load to the title screen)...");
         }
+        // The DLL logs "[field] save loaded" once its player is in a field; Connect waits for it.
+        void PollField()
+        {
+            Func<int, bool> loaded = pid =>
+            {
+                string f = Path.Combine(Logs, "kh2coop_inject_" + pid + ".log");
+                if (!File.Exists(f)) return false;
+                try { return ReadShared(f).Contains("[field] save loaded"); } catch { return false; }
+            };
+            bool before = SaveLoaded;
+            if (GamePid != 0 && fieldPid != GamePid && loaded(GamePid)) fieldPid = GamePid;
+            if (GamePid2 != 0 && fieldPid2 != GamePid2 && loaded(GamePid2)) fieldPid2 = GamePid2;
+            if (!before && SaveLoaded) Log(Mode == "local" ? "Both saves loaded. Press Connect both." : "Save loaded. You can connect now.");
+        }
         void PollSteamId()
         {
             if (Mode == "local" || !GameAlive || MyId.Length > 0) return;
@@ -561,6 +577,7 @@ namespace KH2Coop
         {
             if (Mode == "local") { StartLocal(); return; }
             if (!GameAlive || MyId.Length == 0) { Log("Start the game first and wait for your SteamID."); return; }
+            if (!SaveLoaded) { Log("Load your save first, then connect."); return; }
             peer = (peer ?? "").Trim();
             if (!Regex.IsMatch(peer, @"^\d{17}$")) { Log("Enter the other player's 17-digit SteamID."); return; }
             if (peer == MyId) { Log("That is your own SteamID. Enter the other player's."); return; }
@@ -580,6 +597,7 @@ namespace KH2Coop
         void StartLocal()
         {
             if (!GameAlive || !Game2Alive) { Log("Both games must be running. Press Start first."); return; }
+            if (!SaveLoaded) { Log("Load a save in both games first."); return; }
             string ini = WriteIni(); string stamp = DateTime.Now.ToString("HHmmss");
             Connected = false; Ping = null; Loss = null; Problem = "";
             relay = StartHidden(Relay, "--port " + RelayPort + " --bind 127.0.0.1 --build 1.0.0.10-steam-global --content none --mod none", Path.Combine(Logs, "relay_" + stamp + ".log"), false);
@@ -689,6 +707,7 @@ namespace KH2Coop
                 if (downloadTask != null && downloadTask.IsCompleted) { var t = downloadTask; downloadTask = null; CompleteInstallUpdate(t); }
                 if (launchTask != null && launchTask.IsCompleted) { var t = launchTask; launchTask = null; CompleteStartGame(t); }
                 PollSteamId();
+                PollField();
                 // Keep the two windows side by side for the first ~3 minutes: KH2 re-applies its own display mode
                 // after its splash and again after the first load, which undoes a single early tile.
                 if (Mode == "local" && GameAlive && Game2Alive && tileTries < 500) { tileTries++; int t = Native.Tile(GamePid, GamePid2, TileBorderless); if (t == 1 && !tiled) { tiled = true; Log("Game windows tiled side by side."); } }
