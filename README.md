@@ -5,10 +5,10 @@ The other player appears in your party as Sora 2 — same room, same enemies, th
 
 ## Download
 
-**[KH2CoopSetup.exe](https://github.com/JayKazma/kh2-coop/raw/main/dist/KH2CoopSetup.exe)** — run it, pick a folder, and it installs the launcher with shortcuts.
+**[ConnectedHeartsSetup.exe](https://github.com/JayKazma/connected-hearts/raw/main/dist/ConnectedHeartsSetup.exe)** — run it, pick a folder, and it installs the launcher with shortcuts.
 The launcher keeps itself up to date. Current version: see [`version.txt`](version.txt).
 
-Prefer a zip? [`dist/kh2coop-update.zip`](dist/kh2coop-update.zip) unpacks anywhere; run `KH2Coop.exe`.
+Prefer a zip? [`dist/connected-hearts-update.zip`](dist/connected-hearts-update.zip) unpacks anywhere; run `ConnectedHearts.exe`.
 
 Steam must be running and signed in. Windows Defender may ask once about the mod's DLL; allow it.
 
@@ -25,20 +25,20 @@ Steam must be running and signed in. Windows Defender may ask once about the mod
 
 | | |
 | --- | --- |
-| `KH2Coop.exe` | The launcher (C#, .NET Framework 4.x, WebView2). Source in `src\`, page in `ui\` |
-| `bin\` | The mod: `kh2coop_inject.dll` (runs inside KH2), `kh2coop_runtime_scaffold.exe` (Steam session), `kh2coop_server.exe` (local relay), `kh2ctl.exe` (launches the game) |
+| `ConnectedHearts.exe` | The launcher (C#, .NET Framework 4.x, WebView2). Source in `src\`, page in `ui\` |
+| `bin\` | The mod: `connected_hearts.dll` (runs inside KH2), `connected_hearts_runtime.exe` (Steam session), `connected_hearts_relay.exe` (local relay), `chctl.exe` (launches the game) |
 | `lib\` | Microsoft WebView2 wrappers |
 | `settings.json` | Game folder, mode and SteamIDs |
 | `build\rig\logs\` | Game, Steam and co-op logs — **Collect logs** in the launcher zips them for a bug report |
 
-The mod's source is in [kh2-coop-mod](https://github.com/JayKazma/kh2-coop-mod) (GPL-3.0).
+The mod's source is in [connected-hearts-mod](https://github.com/JayKazma/connected-hearts-mod) (GPL-3.0).
 
 ## Releasing a version
 
-`version.txt` is the current version; `dist/kh2coop-update.zip` the matching package and `dist/notes.txt` the
+`version.txt` is the current version; `dist/connected-hearts-update.zip` the matching package and `dist/notes.txt` the
 change notes. Launchers read all three from `main`, so pushing `main` is the release.
 
     python tools/make_release.py --bin <folder with the mod binaries> --version 0.4.0 --notes "what changed"
-    sh tools/build_exe.sh        # rebuilds KH2Coop.exe and dist/KH2CoopSetup.exe
+    sh tools/build_exe.sh        # rebuilds ConnectedHearts.exe and dist/ConnectedHeartsSetup.exe
 
-Commit `version.txt`, `dist/` and `KH2Coop.exe`, push.
+Commit `version.txt`, `dist/` and `ConnectedHearts.exe`, push.

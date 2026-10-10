@@ -305,7 +305,7 @@ img.av { object-fit: cover; }
     else setPill('pillGame', 'red', 'Game folder needed', esc(exeName));
     if (conn) setPill('pillConn', 'ok', local ? 'Linked' : 'Connected', 'ping <b class="good">' + (s.ping != null ? s.ping + ' ms' : '—') + '</b> · loss <b class="' + (s.loss != null && parseFloat(s.loss) <= 2 ? 'good' : '') + '">' + (s.loss != null ? s.loss + '%' : '—') + '</b> · party <b>2/2</b>');
     else if (rt) setPill('pillConn', 'amber', local ? 'Linking…' : join ? 'Joining…' : 'Hosting', esc(local ? 'local relay 127.0.0.1' : s.peerId || ''));
-    else if (relayMissing) setPill('pillConn', 'red', 'Relay file missing', 'bin\\kh2coop_server.exe');
+    else if (relayMissing) setPill('pillConn', 'red', 'Relay file missing', 'bin\\connected_hearts_relay.exe');
     else if (running && s.myId && !local) setPill('pillConn', 'ok', 'Your SteamID', '<b>' + esc(s.myId) + '</b> · click to copy');
     else setPill('pillConn', '', 'Not connected', local ? 'local relay' : 'ping — · loss —');
     $('pillConn').style.cursor = running && s.myId && !rt && !local ? 'pointer' : '';

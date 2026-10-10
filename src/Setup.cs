@@ -1,4 +1,4 @@
-// Connected Hearts installer. The release package (kh2coop-update.zip) is embedded as resource "payload.zip";
+// Connected Hearts installer. The release package (connected-hearts-update.zip) is embedded as resource "payload.zip";
 // this unpacks it to a folder of the user's choice, makes shortcuts and launches the launcher.
 // Built by tools/build_exe.sh (Mono) or build.bat (Windows csc).
 using System;
@@ -11,7 +11,7 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using System.Windows.Forms;
 
-namespace KH2CoopSetup
+namespace ConnectedHeartsSetup
 {
     static class Native
     {
@@ -80,10 +80,10 @@ namespace KH2CoopSetup
             if (working) return;
             string dir = folder.Text.Trim();
             if (dir.Length == 0) { Say("Choose a folder."); return; }
-            if (Process.GetProcessesByName("KH2Coop").Length > 0)
+            if (Process.GetProcessesByName("ConnectedHearts").Length > 0)
             {
                 if (MessageBox.Show(this, "Connected Hearts is open. Close it and continue?", "Connected Hearts Setup", MessageBoxButtons.OKCancel, MessageBoxIcon.Information) != DialogResult.OK) return;
-                foreach (var p in Process.GetProcessesByName("KH2Coop")) { try { p.CloseMainWindow(); if (!p.WaitForExit(4000)) p.Kill(); } catch { } }
+                foreach (var p in Process.GetProcessesByName("ConnectedHearts")) { try { p.CloseMainWindow(); if (!p.WaitForExit(4000)) p.Kill(); } catch { } }
                 Thread.Sleep(500);
             }
             working = true; install.Enabled = false; browse.Enabled = false; bar.Visible = true; bar.Value = 0;
@@ -111,8 +111,8 @@ namespace KH2CoopSetup
                             n++; Progress(10 + Math.Min(70, n * 70 / Math.Max(1, z.Entries.Count)));
                         }
                     }
-                    string exe = Path.Combine(dir, "KH2Coop.exe");
-                    if (!File.Exists(exe)) throw new Exception("KH2Coop.exe was not in the package.");
+                    string exe = Path.Combine(dir, "ConnectedHearts.exe");
+                    if (!File.Exists(exe)) throw new Exception("ConnectedHearts.exe was not in the package.");
                     Say("Creating shortcuts..."); Progress(85);
                     if (mkDesk) Shortcut(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), "Connected Hearts.lnk"), exe, dir);
                     if (mkMenu)

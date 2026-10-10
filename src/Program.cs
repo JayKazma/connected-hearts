@@ -18,7 +18,7 @@ using System.Threading.Tasks;
 using System.Web.Script.Serialization;
 using System.Windows.Forms;
 
-namespace KH2Coop
+namespace ConnectedHearts
 {
     static class Native
     {
@@ -111,7 +111,7 @@ namespace KH2Coop
             };
             CleanOld(Root); CleanOld(Path.Combine(Root, "lib")); CleanOld(Path.Combine(Root, "bin"));
             bool created;
-            using (var mutex = new Mutex(true, "KH2CoopLauncher", out created))
+            using (var mutex = new Mutex(true, "ConnectedHeartsLauncher", out created))
             {
                 if (!created) { MessageBox.Show("Connected Hearts is already open.", "Connected Hearts"); return 0; }
                 Application.EnableVisualStyles();
@@ -134,7 +134,7 @@ namespace KH2Coop
             core.Shutdown();
             if (core.RestartAfterExit)
             {
-                try { Process.Start(new ProcessStartInfo(Path.Combine(Root, "KH2Coop.exe"), "-NoUpdate") { WorkingDirectory = Root, UseShellExecute = true }); } catch { }
+                try { Process.Start(new ProcessStartInfo(Path.Combine(Root, "ConnectedHearts.exe"), "-NoUpdate") { WorkingDirectory = Root, UseShellExecute = true }); } catch { }
             }
             return 0;
         }
@@ -144,7 +144,7 @@ namespace KH2Coop
     class Core
     {
         public readonly string Root, Bin, Kh2ctl, Runtime, Dll, Relay, Logs, SettingsFile, VersionFile;
-        const string UpdateBase = "https://raw.githubusercontent.com/JayKazma/kh2-coop/main";
+        const string UpdateBase = "https://raw.githubusercontent.com/JayKazma/connected-hearts/main";
         const string GameExe = "KINGDOM HEARTS II FINAL MIX.exe";
         const int RelayPort = 7782;
         readonly JavaScriptSerializer json = new JavaScriptSerializer();
@@ -181,8 +181,8 @@ namespace KH2Coop
         public Core(string root)
         {
             Root = root; Bin = Path.Combine(root, "bin");
-            Kh2ctl = Path.Combine(Bin, "kh2ctl.exe"); Runtime = Path.Combine(Bin, "kh2coop_runtime_scaffold.exe");
-            Dll = Path.Combine(Bin, "kh2coop_inject.dll"); Relay = Path.Combine(Bin, "kh2coop_server.exe");
+            Kh2ctl = Path.Combine(Bin, "chctl.exe"); Runtime = Path.Combine(Bin, "connected_hearts_runtime.exe");
+            Dll = Path.Combine(Bin, "connected_hearts.dll"); Relay = Path.Combine(Bin, "connected_hearts_relay.exe");
             Logs = Path.Combine(root, @"build\rig\logs"); SettingsFile = Path.Combine(root, "settings.json"); VersionFile = Path.Combine(root, "version.txt");
             ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
             LoadSettings();
@@ -311,7 +311,7 @@ namespace KH2Coop
                     ServicePointManager.SecurityProtocol |= SecurityProtocolType.Tls12;
                     using (var wc = new WebClient())
                     {
-                        wc.Headers[HttpRequestHeader.UserAgent] = "KH2Coop launcher";
+                        wc.Headers[HttpRequestHeader.UserAgent] = "ConnectedHearts launcher";
                         string xml = wc.DownloadString("https://steamcommunity.com/profiles/" + id + "?xml=1");
                         var m = Regex.Match(xml, @"<steamID><!\[CDATA\[(.*?)\]\]></steamID>", RegexOptions.Singleline);
                         if (m.Success) name = m.Groups[1].Value.Trim();
@@ -349,7 +349,7 @@ namespace KH2Coop
             {
                 using (var wc = new WebClient())
                 {
-                    wc.Headers["User-Agent"] = "KH2Coop-Launcher"; wc.Headers["Cache-Control"] = "no-cache";
+                    wc.Headers["User-Agent"] = "ConnectedHearts-Launcher"; wc.Headers["Cache-Control"] = "no-cache";
                     string bust = "?t=" + DateTimeOffset.UtcNow.ToUnixTimeSeconds();
                     string remote = wc.DownloadString(UpdateBase + "/version.txt" + bust).Trim();
                     string notes = ""; try { notes = wc.DownloadString(UpdateBase + "/dist/notes.txt" + bust).Trim(); } catch { }
@@ -375,11 +375,11 @@ namespace KH2Coop
             {
                 using (var wc = new WebClient())
                 {
-                    wc.Headers["User-Agent"] = "KH2Coop-Launcher"; wc.Headers["Cache-Control"] = "no-cache";
+                    wc.Headers["User-Agent"] = "ConnectedHearts-Launcher"; wc.Headers["Cache-Control"] = "no-cache";
                     string bust = "?t=" + DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-                    string tmp = Path.Combine(Path.GetTempPath(), "kh2coop-update-" + Guid.NewGuid().ToString("N") + ".zip");
-                    wc.DownloadFile(UpdateBase + "/dist/kh2coop-update.zip" + bust, tmp);
-                    string stage = Path.Combine(Path.GetTempPath(), "kh2coop-stage-" + Guid.NewGuid().ToString("N"));
+                    string tmp = Path.Combine(Path.GetTempPath(), "connected-hearts-update-" + Guid.NewGuid().ToString("N") + ".zip");
+                    wc.DownloadFile(UpdateBase + "/dist/connected-hearts-update.zip" + bust, tmp);
+                    string stage = Path.Combine(Path.GetTempPath(), "connected-hearts-stage-" + Guid.NewGuid().ToString("N"));
                     ZipFile.ExtractToDirectory(tmp, stage);
                     try { File.Delete(tmp); } catch { }
                     return stage;
@@ -400,11 +400,11 @@ namespace KH2Coop
                     bool changed = CopyDir(src, Path.Combine(Root, d));
                     if (changed && (d == "lib" || d == "ui")) restart = true;   // wrappers are loaded and the page is already shown; both need a restart
                 }
-                foreach (var f in new[] { "version.txt", "KH2COOP-PACKAGE", "package.json", "README.md", "KH2Coop.exe.config", "build.bat", "KH2Coop.ps1" })
+                foreach (var f in new[] { "version.txt", "CONNECTED-HEARTS-PACKAGE", "package.json", "README.md", "ConnectedHearts.exe.config", "build.bat" })
                 {
                     string src = Path.Combine(stage, f); if (File.Exists(src)) ReplaceFile(src, Path.Combine(Root, f));
                 }
-                string newExe = Path.Combine(stage, "KH2Coop.exe"), me = Path.Combine(Root, "KH2Coop.exe");
+                string newExe = Path.Combine(stage, "ConnectedHearts.exe"), me = Path.Combine(Root, "ConnectedHearts.exe");
                 if (File.Exists(newExe) && !SameFile(newExe, me)) { ReplaceFile(newExe, me); restart = true; }
                 try { Directory.Delete(stage, true); } catch { }
                 foreach (var d in new[] { "lib", "bin", "ui" }) Native.Unblock(Path.Combine(Root, d));
@@ -454,7 +454,7 @@ namespace KH2Coop
             if (!File.Exists(Path.Combine(dir, GameExe))) { Problem = "Game folder is wrong"; Log("Game folder is wrong: " + GameExe + " not found in '" + dir + "'."); return; }
             foreach (var f in new[] { Kh2ctl, Runtime, Dll }) if (!File.Exists(f)) { Problem = "Files missing"; Log("Missing " + f + ". Check for updates."); return; }
             bool local = Mode == "local";
-            if (local && !File.Exists(Relay)) { Problem = "Relay missing"; Log(@"Solo test needs bin\kh2coop_server.exe (the local relay). Copy it from the build's Release folder."); return; }
+            if (local && !File.Exists(Relay)) { Problem = "Relay missing"; Log(@"Solo test needs bin\connected_hearts_relay.exe (the local relay). Check for updates."); return; }
             if (launchTask != null) return;
             Problem = ""; GameDir = dir; SaveSettings();
             var env = new Dictionary<string, string> { { "SteamAppId", "2552430" }, { "SteamGameId", "2552430" }, { "KH2COOP_PUPPET_TRACE", "1" }, { "KH2COOP_AVATAR_DIAG", "1" } };
@@ -513,7 +513,7 @@ namespace KH2Coop
         {
             Func<int, bool> loaded = pid =>
             {
-                string f = Path.Combine(Logs, "kh2coop_inject_" + pid + ".log");
+                string f = Path.Combine(Logs, "connected_hearts_" + pid + ".log");
                 if (!File.Exists(f)) return false;
                 try { return ReadShared(f).Contains("[field] save loaded"); } catch { return false; }
             };
@@ -781,9 +781,9 @@ namespace KH2Coop
             }
             var c = web.CoreWebView2;
             c.Settings.AreDefaultContextMenusEnabled = false; c.Settings.IsStatusBarEnabled = false; c.Settings.AreDevToolsEnabled = false; c.Settings.IsZoomControlEnabled = false;
-            c.SetVirtualHostNameToFolderMapping("app.kh2coop", Path.Combine(core.Root, "ui"), Microsoft.Web.WebView2.Core.CoreWebView2HostResourceAccessKind.Allow);
+            c.SetVirtualHostNameToFolderMapping("app.connectedhearts", Path.Combine(core.Root, "ui"), Microsoft.Web.WebView2.Core.CoreWebView2HostResourceAccessKind.Allow);
             c.WebMessageReceived += OnMessage;
-            c.Navigate("https://app.kh2coop/index.html");
+            c.Navigate("https://app.connectedhearts/index.html");
             timer = new System.Windows.Forms.Timer { Interval = 350 };
             timer.Tick += delegate
             {
