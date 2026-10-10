@@ -465,6 +465,7 @@ namespace ConnectedHearts
             foreach (var kv in DevEnv) env[kv.Key] = kv.Value;
             if (DevEnv.Count > 0) Log("Test switches: " + string.Join(", ", DevEnv.Select(kv => kv.Key + "=" + kv.Value)));
             int count = local ? 2 : 1;
+            BackupSaves();
             Log(local ? "Starting two copies of KH2 (solo test)..." : "Starting KH2...");
             Launching = true;
             launchTask = Task.Factory.StartNew(() =>
@@ -472,11 +473,37 @@ namespace ConnectedHearts
                 var all = new List<string>();
                 for (int i = 0; i < count; i++)
                 {
-                    all.AddRange(RunCapture(Kh2ctl, "launch --game-dir \"" + dir + "\" --dll \"" + Dll + "\"", env));
+                    // Saves are real. In the solo test both windows share one Steam save folder, so only
+                    // window 1 (the host) writes it; window 2's saves go to a throwaway copy.
+                    var envI = new Dictionary<string, string>(env);
+                    if (i == 0) envI["KH2COOP_SAVEGUARD"] = "0";
+                    all.AddRange(RunCapture(Kh2ctl, "launch --game-dir \"" + dir + "\" --dll \"" + Dll + "\"", envI));
                     if (i < count - 1) Thread.Sleep(3000);
                 }
                 return all.ToArray();
             });
+        }
+        // Copies the game's save folder aside before each start (newest 10 kept), in case a session goes wrong.
+        void BackupSaves()
+        {
+            try
+            {
+                string saves = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "My Games", "KINGDOM HEARTS HD 1.5+2.5 ReMIX");
+                if (!Directory.Exists(saves)) { Log("No save folder found to back up (" + saves + ")."); return; }
+                string root = Path.Combine(Root, "save-backups");
+                string dst = Path.Combine(root, DateTime.Now.ToString("yyyyMMdd-HHmmss"));
+                CopyTree(saves, dst);
+                var old = new DirectoryInfo(root).GetDirectories().OrderByDescending(d => d.Name).Skip(10).ToList();
+                foreach (var d in old) { try { d.Delete(true); } catch { } }
+                Log("Saves backed up to save-backups\\" + Path.GetFileName(dst) + ".");
+            }
+            catch (Exception ex) { Log("Save backup failed: " + ex.Message); }
+        }
+        static void CopyTree(string src, string dst)
+        {
+            Directory.CreateDirectory(dst);
+            foreach (var f in Directory.GetFiles(src)) File.Copy(f, Path.Combine(dst, Path.GetFileName(f)), true);
+            foreach (var d in Directory.GetDirectories(src)) CopyTree(d, Path.Combine(dst, Path.GetFileName(d)));
         }
         string[] RunCapture(string exe, string args, Dictionary<string, string> env)
         {
