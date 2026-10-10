@@ -156,6 +156,8 @@ namespace KH2Coop
         // Steam persona names and avatars by SteamID, from the public community profile
         // (steamcommunity.com/profiles/<id>?xml=1; no key needed, public profiles only). Cached in settings.json.
         public Dictionary<string, Dictionary<string, object>> Names = new Dictionary<string, Dictionary<string, object>>();
+        // Test switches for the mod (settings.json "devEnv": {"KH2COOP_...": "1"}), applied after the defaults.
+        public Dictionary<string, string> DevEnv = new Dictionary<string, string>();
         readonly HashSet<string> resolving = new HashSet<string>();
         public string World = "", Room = ""; // from the runtime's room-state lines
         bool tiled; int tileTries;
@@ -226,6 +228,9 @@ namespace KH2Coop
                 if (d.TryGetValue("friendId", out v) && v != null) FriendId = v.ToString();
                 if (d.TryGetValue("recent", out v) && v is System.Collections.ArrayList)
                     foreach (var r in (System.Collections.ArrayList)v) if (r != null && Regex.IsMatch(r.ToString(), @"^\d{17}$")) Recent.Add(r.ToString());
+                if (d.TryGetValue("devEnv", out v) && v is Dictionary<string, object>)
+                    foreach (var kv in (Dictionary<string, object>)v)
+                        if (kv.Key.StartsWith("KH2COOP_") && kv.Value != null) DevEnv[kv.Key] = kv.Value.ToString();
                 if (d.TryGetValue("names", out v) && v is Dictionary<string, object>)
                     foreach (var kv in (Dictionary<string, object>)v)
                         if (Regex.IsMatch(kv.Key, @"^\d{17}$") && kv.Value is Dictionary<string, object>) Names[kv.Key] = (Dictionary<string, object>)kv.Value;
@@ -237,6 +242,7 @@ namespace KH2Coop
             try
             {
                 var d = new Dictionary<string, object> { { "gameDir", GameDir }, { "tileBorderless", TileBorderless }, { "castReplay", CastReplay }, { "mode", Mode }, { "hostId", HostId }, { "friendId", FriendId }, { "recent", Recent }, { "names", Names } };
+                if (DevEnv.Count > 0) d["devEnv"] = DevEnv;
                 File.WriteAllText(SettingsFile, json.Serialize(d), Encoding.UTF8);
             }
             catch { }
@@ -456,6 +462,8 @@ namespace KH2Coop
             env["KH2COOP_CAST_REPLAY"] = CastReplay ? "1" : "0";
             // The other player is always a second Sora (one-clone party).
             env["KH2COOP_PARTY_NATIVE"] = "1"; env["KH2COOP_NATIVE_SORA_PRIVATE_STATUS"] = "1"; env["KH2COOP_CLONE_NEUTRAL_INPUT"] = "1"; env["KH2COOP_ALLY_HIT"] = "1";
+            foreach (var kv in DevEnv) env[kv.Key] = kv.Value;
+            if (DevEnv.Count > 0) Log("Test switches: " + string.Join(", ", DevEnv.Select(kv => kv.Key + "=" + kv.Value)));
             int count = local ? 2 : 1;
             Log(local ? "Starting two copies of KH2 (solo test)..." : "Starting KH2...");
             Launching = true;
