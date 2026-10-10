@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>KH2 Co-op</title>
+<title>Connected Hearts</title>
 <link rel="icon" type="image/png" href="/icon.png">
 <meta name="theme-color" content="#141414">
 <meta name="color-scheme" content="dark">
@@ -160,7 +160,7 @@ img.av { object-fit: cover; }
 
   <div class="bar">
     <img src="/icon-gold.png" alt="">
-    <div class="brand">KH2 Co-op</div>
+    <div class="brand">Connected Hearts</div>
     <span class="ver" id="ver">v—</span>
     <span class="chip" id="chipState"><i></i><span id="chipStateText">Not running</span></span>
     <div class="sp"></div>
@@ -215,7 +215,7 @@ img.av { object-fit: cover; }
       <div class="idr"><span class="id dim" id="myId">Appears after the game loads</span><button class="copy hide" id="btnCopy">Copy</button></div>
     </div>
     <div class="card p2 wait" id="cardOther">
-      <div class="row"><span class="av"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg></span><div style="min-width:0"><div class="n" id="otherName">Friend</div><div class="s" id="otherSub">Sora clone · not here yet</div></div></div>
+      <div class="row"><span class="av"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg></span><div style="min-width:0"><div class="n" id="otherName">Friend</div><div class="s" id="otherSub">Sora 2 · not here yet</div></div></div>
       <div class="idr"><span class="id" id="otherId"></span></div>
     </div>
     <div class="col end">
@@ -237,7 +237,7 @@ img.av { object-fit: cover; }
   </div>
 
   <div class="toast" id="toast"></div>
-  <div class="offline" id="offline"><div>Launcher closed</div><small>Run KH2 Co-op.bat to open it again.</small></div>
+  <div class="offline" id="offline"><div>Launcher closed</div><small>Open Connected Hearts again from its shortcut.</small></div>
 </div>
 
 <script>
@@ -267,8 +267,8 @@ img.av { object-fit: cover; }
     var canConnect = (local ? (both && !rt) : (running && !!s.myId && !rt)) && !!s.saveLoaded;
     var relayMissing = local && s.relayAvailable === false;
     var other = local ? 'Window 2' : join ? 'Host' : 'Friend';
-    var otherRole = join ? 'Sora · host' : 'Sora clone';
-    var meRole = local ? 'Sora · host' : join ? 'Sora clone' : 'Sora · host';
+    var otherRole = join ? 'Sora · host' : 'Sora 2';
+    var meRole = local ? 'Sora · host' : join ? 'Sora 2' : 'Sora · host';
 
     // header
     var ver = $('ver'); ver.textContent = 'v' + s.version + (s.update ? ' · v' + s.update + ' available' : s.updateText === 'up to date' ? ' · up to date' : ''); ver.classList.toggle('hot', !!s.update && !s.updating);
@@ -409,7 +409,7 @@ img.av { object-fit: cover; }
       .catch(function () { if (++missed > 6) $('offline').classList.add('show'); });
   }
   if (demo) {
-    var base = { recent: ['76561199069387735', '76561198012345678'], names: { '76561199069387735': { name: 'Sento' }, '76561198012345678': {} }, world: '', room: '', tiled: false, version: '0.4.0', update: '', updateText: 'up to date', updating: false, gameDir: 'D:\\SteamLibrary\\steamapps\\common\\KINGDOM HEARTS -HD 1.5+2.5 ReMIX-', mode: 'host', peerId: '76561199069387735', gameRunning: false, gamePid: 0, myId: '', runtimeRunning: false, connected: false, ping: null, loss: null, problem: '', lines: ['13:24:02  KH2 Co-op launcher 0.4.0 ready.', '13:24:03  Up to date (0.4.0).'] };
+    var base = { recent: ['76561199069387735', '76561198012345678'], names: { '76561199069387735': { name: 'Sento' }, '76561198012345678': {} }, world: '', room: '', tiled: false, version: '0.4.0', update: '', updateText: 'up to date', updating: false, gameDir: 'D:\\SteamLibrary\\steamapps\\common\\KINGDOM HEARTS -HD 1.5+2.5 ReMIX-', mode: 'host', peerId: '76561199069387735', gameRunning: false, gamePid: 0, myId: '', runtimeRunning: false, connected: false, ping: null, loss: null, problem: '', lines: ['13:24:02  Connected Hearts 0.4.0 ready.', '13:24:03  Up to date (0.4.0).'] };
     if (demo === 'ready') Object.assign(base, { gameRunning: true, gamePid: 18244, myId: '76561198346755207', lines: base.lines.concat(['13:25:10  KH2 started (PID 18244).', '13:25:31  Steam session ready. Your SteamID: 76561198346755207']) });
     if (demo === 'waiting') Object.assign(base, { gameRunning: true, gamePid: 18244, myId: '76561198346755207', runtimeRunning: true, lines: base.lines.concat(['13:25:31  Steam session ready. Your SteamID: 76561198346755207', '13:26:02  Hosting for 76561199069387735. Waiting for the other player...']) });
     if (demo === 'connected') Object.assign(base, { world: 'Hollow Bastion', room: 'Postern', gameRunning: true, gamePid: 18244, myId: '76561198346755207', runtimeRunning: true, connected: true, ping: 42, loss: '0.3', lines: base.lines.concat(['13:26:02  Hosting for 76561199069387735. Waiting for the other player...', '13:31:10  Connected.']) });

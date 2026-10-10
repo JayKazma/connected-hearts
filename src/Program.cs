@@ -1,4 +1,4 @@
-// KH2 Co-op launcher. Single-file C# (C# 5, .NET Framework 4.x) so it builds with the csc.exe that ships
+// Connected Hearts launcher. Single-file C# (C# 5, .NET Framework 4.x) so it builds with the csc.exe that ships
 // with Windows: see build.bat. Hosts ui\index.html in a borderless WebView2 window and runs the
 // game/runtime/update logic. Layout next to the exe: bin\, ui\, lib\ (WebView2 wrappers), version.txt.
 using System;
@@ -113,7 +113,7 @@ namespace KH2Coop
             bool created;
             using (var mutex = new Mutex(true, "KH2CoopLauncher", out created))
             {
-                if (!created) { MessageBox.Show("KH2 Co-op is already open.", "KH2 Co-op"); return 0; }
+                if (!created) { MessageBox.Show("Connected Hearts is already open.", "Connected Hearts"); return 0; }
                 Application.EnableVisualStyles();
                 Application.SetCompatibleTextRenderingDefault(false);
                 return Run(args);
@@ -186,7 +186,7 @@ namespace KH2Coop
             LoadSettings();
             ResolveKnownNames();
             if (string.IsNullOrEmpty(GameDir)) GameDir = FindGameDir();
-            Log("KH2 Co-op launcher " + LocalVersion() + " ready.");
+            Log("Connected Hearts " + LocalVersion() + " ready.");
             if (string.IsNullOrEmpty(GameDir)) Log("Game folder not found automatically. Use Browse.");
         }
 
@@ -672,7 +672,7 @@ namespace KH2Coop
             try
             {
                 Directory.CreateDirectory(Logs);
-                string outPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), "KH2Coop-logs-" + DateTime.Now.ToString("yyyyMMdd-HHmmss") + ".zip");
+                string outPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), "ConnectedHearts-logs-" + DateTime.Now.ToString("yyyyMMdd-HHmmss") + ".zip");
                 var files = new DirectoryInfo(Logs).GetFiles().Where(f => f.Length < 60L * 1024 * 1024).OrderByDescending(f => f.LastWriteTimeUtc).Take(40).ToList();
                 using (var zip = ZipFile.Open(outPath, ZipArchiveMode.Create))
                 {
@@ -733,7 +733,7 @@ namespace KH2Coop
         {
             this.core = core; this.noUpdate = noUpdate;
             core.Exit = delegate { BeginInvoke(new Action(Close)); };
-            Text = "KH2 Co-op"; FormBorderStyle = FormBorderStyle.None; StartPosition = FormStartPosition.CenterScreen;
+            Text = "Connected Hearts"; FormBorderStyle = FormBorderStyle.None; StartPosition = FormStartPosition.CenterScreen;
             BackColor = ColorTranslator.FromHtml("#2A1434"); ShowInTaskbar = true;
             float scale = 1f; try { using (var g = Graphics.FromHwnd(IntPtr.Zero)) scale = g.DpiX / 96f; } catch { }
             ClientSize = new Size((int)(1000 * scale), (int)(640 * scale));
@@ -759,7 +759,7 @@ namespace KH2Coop
             }
             catch (Exception ex)
             {
-                MessageBox.Show("The launcher window could not start:\n\n" + ex.Message + "\n\nMake sure the lib\\ folder is present and Microsoft Edge is installed.", "KH2 Co-op", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show("The launcher window could not start:\n\n" + ex.Message + "\n\nMake sure the lib\\ folder is present and Microsoft Edge is installed.", "Connected Hearts", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 Close();
             }
         }
@@ -768,7 +768,7 @@ namespace KH2Coop
         {
             if (!e.IsSuccess)
             {
-                MessageBox.Show("WebView2 could not start:\n\n" + e.InitializationException.Message + "\n\nInstall the Microsoft Edge WebView2 Runtime (it comes with Windows 11 and Edge).", "KH2 Co-op", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show("WebView2 could not start:\n\n" + e.InitializationException.Message + "\n\nInstall the Microsoft Edge WebView2 Runtime (it comes with Windows 11 and Edge).", "Connected Hearts", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 Close(); return;
             }
             var c = web.CoreWebView2;
@@ -808,7 +808,7 @@ namespace KH2Coop
         {
             if (core.RuntimeAlive && !core.RestartAfterExit && e.CloseReason == CloseReason.UserClosing)
             {
-                if (MessageBox.Show(this, "Closing the launcher disconnects co-op (the game stays open). Close?", "KH2 Co-op", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) { e.Cancel = true; return; }
+                if (MessageBox.Show(this, "Closing the launcher disconnects co-op (the game stays open). Close?", "Connected Hearts", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) { e.Cancel = true; return; }
             }
             base.OnFormClosing(e);
         }

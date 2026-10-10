@@ -47,7 +47,7 @@ def main() -> None:
     (stage / 'KH2COOP-PACKAGE').write_text('kh2coop-friend-package-v1\n', encoding='ascii')
     (stage / 'version.txt').write_text(a.version + '\r\n', encoding='ascii')
     files = {p.relative_to(stage).as_posix(): digest(p) for p in sorted(stage.rglob('*')) if p.is_file()}
-    manifest = {'schema': 1, 'name': 'KH2 Co-op (Steam)', 'version': a.version, 'avatarBridgeVersion': 3,
+    manifest = {'schema': 1, 'name': 'Connected Hearts (Steam)', 'version': a.version, 'avatarBridgeVersion': 3,
                 'protocol': 10, 'gameBuild': '1.0.0.10-steam-global', 'content': 'none', 'mod': 'none',
                 'supportedGame': {'fileVersion': '1.0.0.2', 'edition': 'Steam Global'},
                 'products': {'cli': 'bin/kh2ctl.exe', 'inject': 'bin/kh2coop_inject.dll',

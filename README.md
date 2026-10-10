@@ -1,7 +1,7 @@
-# KH2 Co-op
+# Connected Hearts
 
 Two-player online co-op for **Kingdom Hearts II Final Mix** (Steam, Global build) over Steam.
-The other player appears in your party as a second Sora — same room, same enemies, their own keyblade.
+The other player appears in your party as Sora 2 — same room, same enemies, their own keyblade.
 
 ## Download
 

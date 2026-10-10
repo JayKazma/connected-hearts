@@ -1,4 +1,4 @@
-// KH2 Co-op installer. The release package (kh2coop-update.zip) is embedded as resource "payload.zip";
+// Connected Hearts installer. The release package (kh2coop-update.zip) is embedded as resource "payload.zip";
 // this unpacks it to a folder of the user's choice, makes shortcuts and launches the launcher.
 // Built by tools/build_exe.sh (Mono) or build.bat (Windows csc).
 using System;
@@ -40,20 +40,20 @@ namespace KH2CoopSetup
 
         public SetupForm()
         {
-            Text = "KH2 Co-op Setup"; FormBorderStyle = FormBorderStyle.FixedSingle; MaximizeBox = false; StartPosition = FormStartPosition.CenterScreen;
+            Text = "Connected Hearts Setup"; FormBorderStyle = FormBorderStyle.FixedSingle; MaximizeBox = false; StartPosition = FormStartPosition.CenterScreen;
             BackColor = Ink; ForeColor = Color.FromArgb(255, 246, 238); Font = new Font("Segoe UI", 10f);
             AutoScaleMode = AutoScaleMode.Dpi; ClientSize = new Size(560, 400);
             try { Icon = Icon.ExtractAssociatedIcon(Assembly.GetExecutingAssembly().Location); } catch { }
 
-            var title = new Label { Text = "KH2 Co-op", Font = new Font("Segoe UI", 20f, FontStyle.Bold), Location = new Point(28, 24), AutoSize = true };
-            var sub = new Label { Text = "Online co-op for Kingdom Hearts II Final Mix (Steam). A second Sora in your party.", ForeColor = Text2, Location = new Point(30, 66), AutoSize = true };
+            var title = new Label { Text = "Connected Hearts", Font = new Font("Segoe UI", 20f, FontStyle.Bold), Location = new Point(28, 24), AutoSize = true };
+            var sub = new Label { Text = "Online co-op for Kingdom Hearts II Final Mix (Steam). The other player joins your party as Sora 2.", ForeColor = Text2, Location = new Point(30, 66), AutoSize = true };
             var lbl = new Label { Text = "Install to", ForeColor = Text2, Location = new Point(30, 112), AutoSize = true };
             folder = new TextBox { Location = new Point(30, 134), Size = new Size(400, 28), BackColor = Panel, ForeColor = ForeColor, BorderStyle = BorderStyle.FixedSingle };
-            folder.Text = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "KH2 Co-op");
+            folder.Text = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Connected Hearts");
             browse = Flat("Browse", new Point(440, 132), new Size(90, 30)); browse.Click += delegate { Browse(); };
             desk = Check("Desktop shortcut", 184, true);
             menu = Check("Start menu shortcut", 212, true);
-            launch = Check("Open KH2 Co-op when done", 240, true);
+            launch = Check("Open Connected Hearts when done", 240, true);
             var note = new Label { Text = "Needs: Kingdom Hearts HD 1.5+2.5 ReMiX on Steam, Steam running. Windows Defender may ask once about the mod's DLL.", ForeColor = Text2, Location = new Point(30, 276), Size = new Size(500, 40) };
             bar = new ProgressBar { Location = new Point(30, 322), Size = new Size(500, 8), Style = ProgressBarStyle.Continuous, Visible = false };
             status = new Label { Text = "", ForeColor = Text2, Location = new Point(30, 338), AutoSize = true };
@@ -71,8 +71,8 @@ namespace KH2CoopSetup
 
         void Browse()
         {
-            using (var d = new FolderBrowserDialog { Description = "Choose where to install KH2 Co-op", SelectedPath = folder.Text })
-                if (d.ShowDialog(this) == DialogResult.OK) folder.Text = Path.Combine(d.SelectedPath, "KH2 Co-op");
+            using (var d = new FolderBrowserDialog { Description = "Choose where to install Connected Hearts", SelectedPath = folder.Text })
+                if (d.ShowDialog(this) == DialogResult.OK) folder.Text = Path.Combine(d.SelectedPath, "Connected Hearts");
         }
 
         void Install()
@@ -82,7 +82,7 @@ namespace KH2CoopSetup
             if (dir.Length == 0) { Say("Choose a folder."); return; }
             if (Process.GetProcessesByName("KH2Coop").Length > 0)
             {
-                if (MessageBox.Show(this, "KH2 Co-op is open. Close it and continue?", "KH2 Co-op Setup", MessageBoxButtons.OKCancel, MessageBoxIcon.Information) != DialogResult.OK) return;
+                if (MessageBox.Show(this, "Connected Hearts is open. Close it and continue?", "Connected Hearts Setup", MessageBoxButtons.OKCancel, MessageBoxIcon.Information) != DialogResult.OK) return;
                 foreach (var p in Process.GetProcessesByName("KH2Coop")) { try { p.CloseMainWindow(); if (!p.WaitForExit(4000)) p.Kill(); } catch { } }
                 Thread.Sleep(500);
             }
@@ -114,11 +114,11 @@ namespace KH2CoopSetup
                     string exe = Path.Combine(dir, "KH2Coop.exe");
                     if (!File.Exists(exe)) throw new Exception("KH2Coop.exe was not in the package.");
                     Say("Creating shortcuts..."); Progress(85);
-                    if (mkDesk) Shortcut(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), "KH2 Co-op.lnk"), exe, dir);
+                    if (mkDesk) Shortcut(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), "Connected Hearts.lnk"), exe, dir);
                     if (mkMenu)
                     {
-                        string pm = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Programs), "KH2 Co-op");
-                        Directory.CreateDirectory(pm); Shortcut(Path.Combine(pm, "KH2 Co-op.lnk"), exe, dir);
+                        string pm = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Programs), "Connected Hearts");
+                        Directory.CreateDirectory(pm); Shortcut(Path.Combine(pm, "Connected Hearts.lnk"), exe, dir);
                     }
                     Progress(100); Say("Installed to " + dir);
                     if (run) { try { Process.Start(new ProcessStartInfo(exe) { WorkingDirectory = dir, UseShellExecute = true }); } catch { } }
@@ -143,7 +143,7 @@ namespace KH2CoopSetup
             t.InvokeMember("TargetPath", BindingFlags.SetProperty, null, sc, new object[] { target });
             t.InvokeMember("WorkingDirectory", BindingFlags.SetProperty, null, sc, new object[] { workDir });
             t.InvokeMember("IconLocation", BindingFlags.SetProperty, null, sc, new object[] { Path.Combine(workDir, @"ui\icon.ico") + ",0" });
-            t.InvokeMember("Description", BindingFlags.SetProperty, null, sc, new object[] { "KH2 Co-op" });
+            t.InvokeMember("Description", BindingFlags.SetProperty, null, sc, new object[] { "Connected Hearts" });
             t.InvokeMember("Save", BindingFlags.InvokeMethod, null, sc, null);
         }
 
