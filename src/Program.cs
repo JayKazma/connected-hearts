@@ -153,6 +153,10 @@ namespace KH2Coop
         // settings
         public string GameDir = "", Mode = "host", HostId = "", FriendId = "";
         public List<string> Recent = new List<string>();
+        // Steam persona names and avatars by SteamID, from the public community profile
+        // (steamcommunity.com/profiles/<id>?xml=1; no key needed, public profiles only). Cached in settings.json.
+        public Dictionary<string, Dictionary<string, object>> Names = new Dictionary<string, Dictionary<string, object>>();
+        readonly HashSet<string> resolving = new HashSet<string>();
         public string World = "", Room = ""; // from the runtime's room-state lines
         bool tiled; int tileTries;
         public bool TileBorderless = true; // solo test: the two game windows meet edge to edge (settings.json "tileBorderless")
@@ -178,6 +182,7 @@ namespace KH2Coop
             Logs = Path.Combine(root, @"build\rig\logs"); SettingsFile = Path.Combine(root, "settings.json"); VersionFile = Path.Combine(root, "version.txt");
             ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
             LoadSettings();
+            ResolveKnownNames();
             if (string.IsNullOrEmpty(GameDir)) GameDir = FindGameDir();
             Log("KH2 Co-op launcher " + LocalVersion() + " ready.");
             if (string.IsNullOrEmpty(GameDir)) Log("Game folder not found automatically. Use Browse.");
@@ -219,6 +224,9 @@ namespace KH2Coop
                 if (d.TryGetValue("friendId", out v) && v != null) FriendId = v.ToString();
                 if (d.TryGetValue("recent", out v) && v is System.Collections.ArrayList)
                     foreach (var r in (System.Collections.ArrayList)v) if (r != null && Regex.IsMatch(r.ToString(), @"^\d{17}$")) Recent.Add(r.ToString());
+                if (d.TryGetValue("names", out v) && v is Dictionary<string, object>)
+                    foreach (var kv in (Dictionary<string, object>)v)
+                        if (Regex.IsMatch(kv.Key, @"^\d{17}$") && kv.Value is Dictionary<string, object>) Names[kv.Key] = (Dictionary<string, object>)kv.Value;
             }
             catch { }
         }
@@ -226,7 +234,7 @@ namespace KH2Coop
         {
             try
             {
-                var d = new Dictionary<string, object> { { "gameDir", GameDir }, { "tileBorderless", TileBorderless }, { "castReplay", CastReplay }, { "mode", Mode }, { "hostId", HostId }, { "friendId", FriendId }, { "recent", Recent } };
+                var d = new Dictionary<string, object> { { "gameDir", GameDir }, { "tileBorderless", TileBorderless }, { "castReplay", CastReplay }, { "mode", Mode }, { "hostId", HostId }, { "friendId", FriendId }, { "recent", Recent }, { "names", Names } };
                 File.WriteAllText(SettingsFile, json.Serialize(d), Encoding.UTF8);
             }
             catch { }
@@ -260,10 +268,68 @@ namespace KH2Coop
                 { "gameRunning", GameAlive }, { "gamePid", GamePid }, { "myId", MyId }, { "launching", Launching },
                 { "game2Running", Game2Alive }, { "gamePid2", GamePid2 }, { "relayAvailable", File.Exists(Relay) },
                 { "runtimeRunning", RuntimeAlive }, { "connected", Connected }, { "ping", Ping }, { "loss", Loss }, { "problem", Problem },
-                { "native", true }, { "lines", l }, { "recent", new List<string>(Recent) },
+                { "native", true }, { "lines", l }, { "recent", new List<string>(Recent) }, { "names", NamesSnapshot() },
                 { "world", World }, { "room", Room }, { "tiled", tiled }
             };
             return json.Serialize(d);
+        }
+
+        // ---- Steam names
+        Dictionary<string, object> NamesSnapshot()
+        {
+            var d = new Dictionary<string, object>();
+            lock (gate) foreach (var kv in Names) d[kv.Key] = new Dictionary<string, object>(kv.Value);
+            return d;
+        }
+        // Looks a SteamID up once a day (or when unknown); the page re-renders when the name arrives.
+        public void ResolveName(string id)
+        {
+            if (!Regex.IsMatch(id ?? "", @"^\d{17}$")) return;
+            lock (gate)
+            {
+                Dictionary<string, object> have;
+                object at;
+                if (Names.TryGetValue(id, out have) && have.TryGetValue("at", out at))
+                {
+                    long t; if (long.TryParse(at.ToString(), out t) && DateTime.UtcNow.Ticks - t < TimeSpan.TicksPerDay) return;
+                }
+                if (!resolving.Add(id)) return;
+            }
+            Task.Factory.StartNew(() =>
+            {
+                string name = null, avatar = null;
+                try
+                {
+                    ServicePointManager.SecurityProtocol |= SecurityProtocolType.Tls12;
+                    using (var wc = new WebClient())
+                    {
+                        wc.Headers[HttpRequestHeader.UserAgent] = "KH2Coop launcher";
+                        string xml = wc.DownloadString("https://steamcommunity.com/profiles/" + id + "?xml=1");
+                        var m = Regex.Match(xml, @"<steamID><!\[CDATA\[(.*?)\]\]></steamID>", RegexOptions.Singleline);
+                        if (m.Success) name = m.Groups[1].Value.Trim();
+                        m = Regex.Match(xml, @"<avatarMedium><!\[CDATA\[(.*?)\]\]></avatarMedium>", RegexOptions.Singleline);
+                        if (m.Success) avatar = m.Groups[1].Value.Trim();
+                    }
+                }
+                catch { }
+                lock (gate)
+                {
+                    resolving.Remove(id);
+                    Dictionary<string, object> e;
+                    if (!Names.TryGetValue(id, out e)) Names[id] = e = new Dictionary<string, object>();
+                    if (!string.IsNullOrEmpty(name)) e["name"] = name;
+                    if (!string.IsNullOrEmpty(avatar)) e["avatar"] = avatar;
+                    e["at"] = DateTime.UtcNow.Ticks;
+                }
+                SaveSettings();
+            });
+        }
+        public void ResolveKnownNames()
+        {
+            foreach (var id in new List<string>(Recent)) ResolveName(id);
+            if (MyId.Length == 17) ResolveName(MyId);
+            if (HostId.Length == 17) ResolveName(HostId);
+            if (FriendId.Length == 17) ResolveName(FriendId);
         }
 
         // ---- update
@@ -439,7 +505,7 @@ namespace KH2Coop
             if (!File.Exists(bl)) return;
             string t; try { t = ReadShared(bl); } catch { return; }
             var m = Regex.Match(t, @"ready appId=2552430 identity=(\d{17})");
-            if (m.Success) { MyId = m.Groups[1].Value; Log("Steam session ready. Your SteamID: " + MyId); return; }
+            if (m.Success) { MyId = m.Groups[1].Value; Log("Steam session ready. Your SteamID: " + MyId); ResolveName(MyId); return; }
             var f = Regex.Match(t, @"\[steam-broker\] (unavailable|refused|exception)[^\r\n]*");
             if (f.Success && Problem != "Steam session failed") { Problem = "Steam session failed"; Log("Steam session failed: " + f.Value); }
         }
@@ -501,7 +567,7 @@ namespace KH2Coop
             bool isHost = Mode != "join";
             if (isHost) FriendId = peer; else HostId = peer;
             Recent.Remove(peer); Recent.Insert(0, peer); if (Recent.Count > 6) Recent.RemoveRange(6, Recent.Count - 6);
-            SaveSettings();
+            SaveSettings(); ResolveName(peer); ResolveName(MyId);
             string ini = WriteIni();
             string desync = Path.Combine(Root, @"build\rig\steam-desync-" + DateTime.Now.ToString("yyyyMMdd-HHmmss"));
             string role = isHost ? "player" : "friend1";
@@ -554,7 +620,17 @@ namespace KH2Coop
                     SaveSettings(); if (!GameAlive && !Launching) StartGame(); break;
                 case "setGameDir": if (!GameAlive && str("gameDir") != null) { GameDir = str("gameDir").Trim(new[] { '"' }); SaveSettings(); } break;
                 case "setMode": if (!RuntimeAlive && !GameAlive) { string m = str("mode"); Mode = (m == "join" || m == "local") ? m : "host"; SaveSettings(); } break;
-                case "setPeer": if (!RuntimeAlive) { if (Mode == "join") HostId = str("peerId") ?? ""; else if (Mode != "local") FriendId = str("peerId") ?? ""; SaveSettings(); } break;
+                case "setPeer": if (!RuntimeAlive) { string pid = (str("peerId") ?? "").Trim(); if (Mode == "join") HostId = pid; else if (Mode != "local") FriendId = pid; SaveSettings(); ResolveName(pid); } break;
+                case "pasteId":
+                    if (!RuntimeAlive)
+                    {
+                        string clip = ""; try { clip = Clipboard.GetText() ?? ""; } catch { }
+                        var pm = Regex.Match(clip, @"\b(7656\d{13})\b");
+                        if (!pm.Success) { Log("No SteamID on the clipboard (17 digits starting with 7656)."); break; }
+                        if (Mode == "join") HostId = pm.Value; else if (Mode != "local") FriendId = pm.Value;
+                        SaveSettings(); ResolveName(pm.Value);
+                    }
+                    break;
                 case "browse":
                     using (var d = new FolderBrowserDialog { Description = "Choose the folder that contains " + GameExe })
                     { if (GameDir.Length > 0) d.SelectedPath = GameDir; if (d.ShowDialog(owner) == DialogResult.OK) { GameDir = d.SelectedPath; SaveSettings(); } }

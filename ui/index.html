@@ -71,6 +71,7 @@ h1 { margin: 0; font-size: 48px; line-height: 1; font-weight: 800; letter-spacin
 .badge.p2 { border-color: rgba(127,180,255,.5); }
 .badge.wait { background: rgba(16,16,18,.5); border: 1px dashed rgba(255,247,236,.3); }
 .badge.wait .n { color: var(--text2); }
+img.av { object-fit: cover; }
 .av { width: 36px; height: 36px; border-radius: 50%; background: var(--gold); color: var(--ink); display: flex; align-items: center; justify-content: center; box-shadow: 0 0 0 2px rgba(16,16,18,.8); flex: none; }
 .badge.p2 .av { background: var(--blue); }
 .badge.wait .av { background: transparent; border: 2px dashed rgba(255,247,236,.45); color: var(--muted); box-shadow: none; }
@@ -98,8 +99,23 @@ h1 { margin: 0; font-size: 48px; line-height: 1; font-weight: 800; letter-spacin
 .seg button.on { background: var(--gold); color: var(--ink); font-weight: 700; }
 .seg button:disabled:not(.on) { color: var(--dim); }
 .note { display: flex; align-items: center; height: 36px; padding: 0 12px; border-radius: 10px; background: rgba(8,8,10,.4); border: 1px dashed rgba(255,247,236,.2); font-size: 12px; color: var(--text2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.recent { display: flex; gap: 6px; flex-wrap: wrap; }
-.recent button { height: 22px; padding: 0 9px; border-radius: 999px; border: 1px solid var(--line2); background: transparent; color: var(--text); font: 400 10.5px 'JetBrains Mono', Consolas, monospace; }
+.who { display: flex; align-items: center; gap: 8px; height: 22px; padding: 0 2px; font-size: 12px; color: var(--text2); white-space: nowrap; overflow: hidden; }
+.who .pv { width: 18px; height: 18px; border-radius: 50%; background: var(--well); flex: none; object-fit: cover; }
+.who b { color: var(--text); font-weight: 700; overflow: hidden; text-overflow: ellipsis; }
+.who .m { font-family: 'JetBrains Mono', Consolas, monospace; font-size: 10.5px; color: var(--muted); }
+.ibtn.sq { width: 36px; height: 36px; border: 1px solid var(--line2); border-radius: 10px; flex: none; }
+.ibtn.sq.on { border-color: rgba(242,193,78,.6); color: var(--gold); }
+.pop { position: absolute; left: 0; right: 0; bottom: calc(100% + 6px); padding: 6px; border-radius: 12px; background: rgba(16,16,18,.97); border: 1px solid rgba(242,193,78,.4); box-shadow: 0 12px 30px rgba(0,0,0,.5); display: none; flex-direction: column; gap: 2px; z-index: 5; }
+.pop.open { display: flex; }
+.pop .h { padding: 4px 8px 6px; }
+.pop .r { display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 8px; border-radius: 8px; cursor: pointer; }
+.pop .r:hover { background: rgba(255,247,236,.08); }
+.pop .pv { width: 26px; height: 26px; border-radius: 50%; background: var(--well); color: var(--text2); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; flex: none; object-fit: cover; }
+.pop .n { font-size: 12.5px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
+.pop .n.dim { color: var(--text2); font-weight: 500; }
+.pop .m { font-family: 'JetBrains Mono', Consolas, monospace; font-size: 10.5px; color: var(--muted); }
+.pop .x { width: 22px; height: 22px; border: 0; border-radius: 6px; background: transparent; color: var(--muted); font-size: 14px; line-height: 1; }
+.pop .x:hover { background: rgba(255,138,138,.15); color: var(--red2); }
 .primary { height: 56px; border-radius: 14px; border: 0; background: var(--gold); color: var(--ink); font-size: 16px; font-weight: 800; display: flex; align-items: center; justify-content: center; gap: 10px; box-shadow: 0 10px 30px rgba(242,193,78,.3); }
 .primary svg { width: 16px; height: 16px; fill: currentColor; }
 .primary:hover:not(:disabled) { background: var(--gold2); }
@@ -176,12 +192,14 @@ h1 { margin: 0; font-size: 48px; line-height: 1; font-weight: 800; letter-spacin
     <div class="col">
       <div class="k" id="peerLabel">Play with</div>
       <div class="seg"><button id="segHost" class="on">Host</button><button id="segJoin">Join</button><button id="segLocal">Solo test</button></div>
-      <div class="row" id="peerRow">
-        <input class="in" id="peerId" type="text" placeholder="Friend's SteamID" maxlength="17" inputmode="numeric" spellcheck="false" list="recentIds" autocomplete="off">
-        <datalist id="recentIds"></datalist>
+      <div class="row" id="peerRow" style="position:relative">
+        <input class="in" id="peerId" type="text" placeholder="Friend's SteamID" maxlength="17" inputmode="numeric" spellcheck="false" autocomplete="off">
+        <button class="ibtn sq" id="btnPaste" title="Paste a SteamID from the clipboard" aria-label="Paste SteamID"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M9 13h6M9 17h6"/></svg></button>
+        <button class="ibtn sq hide" id="btnRecent" title="Recent players" aria-label="Recent players"><svg viewBox="0 0 12 12" style="width:11px;height:11px"><path d="M2 4.5l4 4 4-4"/></svg></button>
+        <div class="pop" id="recent"><div class="k h">Recent players</div></div>
       </div>
+      <div class="who hide" id="peerWho"></div>
       <div class="note hide" id="localNote">Two windows on this PC, tiled side by side</div>
-      <div class="recent hide" id="recent"></div>
     </div>
     <div class="col end">
       <div class="k">Launch</div>
@@ -239,7 +257,8 @@ h1 { margin: 0; font-size: 48px; line-height: 1; font-weight: 800; letter-spacin
   function toast(t) { var e = $('toast'); e.textContent = t; e.classList.add('show'); clearTimeout(e._t); e._t = setTimeout(function () { e.classList.remove('show'); }, 1800); }
   function setChip(el, cls, text) { el.className = 'chip' + (cls ? ' ' + cls : ''); el.querySelector('span').textContent = text; }
   function setPill(id, cls, text, sub) { var p = $(id); p.className = 'pill' + (cls ? ' ' + cls : ''); $(id + 'Text').textContent = text; $(id + 'Sub').innerHTML = sub || ''; }
-  function badge(cls, name, sub) { return '<div class="badge ' + cls + '">' + AV + '<div><div class="n">' + name + '</div><div class="s">' + sub + '</div></div></div>'; }
+  function badge(cls, name, sub, av) { return '<div class="badge ' + cls + '">' + (av ? '<img class="av" src="' + esc(av) + '" alt="">' : AV) + '<div><div class="n">' + esc(name) + '</div><div class="s">' + sub + '</div></div></div>'; }
+  function setAv(card, url) { var av = card.querySelector('.av'); if (url) { if (av.tagName !== 'IMG') { var im = document.createElement('img'); im.className = 'av'; im.alt = ''; av.parentNode.replaceChild(im, av); av = im; } if (av.src !== url) av.src = url; } else if (av.tagName === 'IMG') { var sp = document.createElement('span'); sp.className = 'av'; sp.innerHTML = AV.replace(/^<span class="av">|<\/span>$/g, ''); av.parentNode.replaceChild(sp, av); } }
   function esc(t) { return String(t).replace(/[&<>]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]; }); }
 
   function render(s) {
@@ -291,9 +310,10 @@ h1 { margin: 0; font-size: 48px; line-height: 1; font-weight: 800; letter-spacin
     $('pillConn').style.cursor = running && s.myId && !rt && !local ? 'pointer' : '';
 
     // badges
-    var b = $('badges');
-    if (conn) b.innerHTML = badge('p1', local ? 'Window 1' : 'You', meRole) + badge('p2', other, otherRole);
-    else b.innerHTML = badge('p1', local ? 'Window 1' : 'You', meRole) + badge('p2 wait', other, otherRole + ' · waiting');
+    var b = $('badges'), bn = s.names || {}, bm = bn[s.myId] || {}, bo = local ? {} : (bn[s.peerId] || {});
+    var meLabel = local ? 'Window 1' : (bm.name ? bm.name : 'You'), otherLabel = bo.name ? bo.name : other;
+    if (conn) b.innerHTML = badge('p1', meLabel, meRole, local ? '' : bm.avatar) + badge('p2', otherLabel, otherRole, bo.avatar);
+    else b.innerHTML = badge('p1', meLabel, meRole, local ? '' : bm.avatar) + badge('p2 wait', otherLabel, otherRole + ' · waiting', bo.avatar);
     b.classList.toggle('hide', rt || conn);
 
     // docks
@@ -327,29 +347,41 @@ h1 { margin: 0; font-size: 48px; line-height: 1; font-weight: 800; letter-spacin
     $('btnCloseGame').classList.toggle('hide', !running);
 
     // session dock
-    $('meName').textContent = local ? 'Window 1' : 'You'; $('meSub').textContent = meRole;
+    var mn = (s.names || {})[s.myId], on = (s.names || {})[s.peerId];
+    $('meName').textContent = local ? 'Window 1' : (mn && mn.name ? mn.name : 'You'); $('meSub').textContent = meRole + (mn && mn.name ? ' · you' : '');
     var co = $('cardOther'); co.className = 'card p2' + (conn ? '' : ' wait');
-    $('otherName').textContent = other; $('otherSub').textContent = otherRole + (conn ? '' : (local ? ' · linking' : ' · not here yet'));
+    setAv($('cardMe'), local ? '' : (mn && mn.avatar)); setAv(co, local ? '' : (on && on.avatar));
+    $('otherName').textContent = local ? other : (on && on.name ? on.name : other); $('otherSub').textContent = otherRole + (conn ? '' : (local ? ' · linking' : ' · not here yet'));
     $('otherId').textContent = local ? '' : (s.peerId || '');
     var my = $('myId'); my.textContent = local ? 'Local relay' : (s.myId || 'Appears after the game loads'); my.className = 'id' + (s.myId && !local ? '' : ' dim');
     $('btnCopy').classList.toggle('hide', !s.myId || local); $('btnCopy').classList.toggle('hot', rt && !conn && !join);
     $('btnDisconnect').textContent = conn ? 'Disconnect' : 'Cancel';
 
-    // recent ids
-    var rec = s.recent || [], rbox = $('recent'), dl = $('recentIds');
-    var key = rec.join(',') + '|' + s.myId;
+    // who the typed ID is
+    var names = s.names || {}, pid = $('peerId').value.trim(), who = $('peerWho'), pn = names[pid];
+    if (!local && /^\d{17}$/.test(pid) && pid !== s.myId) {
+      who.classList.remove('hide');
+      if (pn && pn.name) who.innerHTML = (pn.avatar ? '<img class="pv" src="' + esc(pn.avatar) + '" alt="">' : '<span class="pv"></span>') + '<b>' + esc(pn.name) + '</b><span class="m">' + esc(pid) + '</span>';
+      else who.innerHTML = '<span class="pv"></span><span>' + (pn ? 'Private profile' : 'Looking up name…') + '</span><span class="m">' + esc(pid) + '</span>';
+    } else who.classList.add('hide');
+
+    // recent players
+    var rec = (s.recent || []).filter(function (id) { return id !== s.myId; }), rbox = $('recent');
+    var key = rec.map(function (id) { var n = names[id] || {}; return id + ':' + (n.name || '') + ':' + (n.avatar || ''); }).join(',');
     if (rbox.dataset.key !== key) {
-      rbox.dataset.key = key; rbox.innerHTML = ''; dl.innerHTML = '';
+      rbox.dataset.key = key;
+      while (rbox.children.length > 1) rbox.removeChild(rbox.lastChild);
       rec.forEach(function (id) {
-        if (id === s.myId) return;
-        var o = document.createElement('option'); o.value = id; dl.appendChild(o);
-        var btn = document.createElement('button'); btn.type = 'button'; btn.textContent = id; btn.title = 'Use this ID (right-click to forget)';
-        btn.onclick = function () { $('peerId').value = id; $('peerId').dispatchEvent(new Event('input')); cmd('setPeer', { peerId: id }); };
-        btn.oncontextmenu = function (e) { e.preventDefault(); cmd('forgetRecent', { peerId: id }); };
-        rbox.appendChild(btn);
+        var n = names[id] || {}, r = document.createElement('div'); r.className = 'r';
+        r.innerHTML = (n.avatar ? '<img class="pv" src="' + esc(n.avatar) + '" alt="">' : '<span class="pv">' + esc((n.name || '?').charAt(0).toUpperCase()) + '</span>')
+          + '<span class="n' + (n.name ? '' : ' dim') + '">' + esc(n.name || 'No name yet') + '</span><span class="m">' + esc(id) + '</span><button class="x" type="button" title="Forget">×</button>';
+        r.onclick = function () { $('peerId').value = id; $('peerId').dispatchEvent(new Event('input')); cmd('setPeer', { peerId: id }); rbox.classList.remove('open'); $('btnRecent').classList.remove('on'); };
+        r.lastChild.onclick = function (e) { e.stopPropagation(); cmd('forgetRecent', { peerId: id }); };
+        rbox.appendChild(r);
       });
     }
-    rbox.classList.toggle('hide', local || rt || rbox.children.length === 0);
+    $('btnRecent').classList.toggle('hide', local || rec.length === 0); $('btnRecent').disabled = rt; $('btnPaste').disabled = rt;
+    if (rec.length === 0) { rbox.classList.remove('open'); $('btnRecent').classList.remove('on'); }
 
     // activity
     if (s.lines && s.lines.length > lineCount) {
@@ -377,7 +409,7 @@ h1 { margin: 0; font-size: 48px; line-height: 1; font-weight: 800; letter-spacin
       .catch(function () { if (++missed > 6) $('offline').classList.add('show'); });
   }
   if (demo) {
-    var base = { recent: ['76561199069387735'], world: '', room: '', tiled: false, version: '0.4.0', update: '', updateText: 'up to date', updating: false, gameDir: 'D:\\SteamLibrary\\steamapps\\common\\KINGDOM HEARTS -HD 1.5+2.5 ReMIX-', mode: 'host', peerId: '76561199069387735', gameRunning: false, gamePid: 0, myId: '', runtimeRunning: false, connected: false, ping: null, loss: null, problem: '', lines: ['13:24:02  KH2 Co-op launcher 0.4.0 ready.', '13:24:03  Up to date (0.4.0).'] };
+    var base = { recent: ['76561199069387735', '76561198012345678'], names: { '76561199069387735': { name: 'Sento' }, '76561198012345678': {} }, world: '', room: '', tiled: false, version: '0.4.0', update: '', updateText: 'up to date', updating: false, gameDir: 'D:\\SteamLibrary\\steamapps\\common\\KINGDOM HEARTS -HD 1.5+2.5 ReMIX-', mode: 'host', peerId: '76561199069387735', gameRunning: false, gamePid: 0, myId: '', runtimeRunning: false, connected: false, ping: null, loss: null, problem: '', lines: ['13:24:02  KH2 Co-op launcher 0.4.0 ready.', '13:24:03  Up to date (0.4.0).'] };
     if (demo === 'ready') Object.assign(base, { gameRunning: true, gamePid: 18244, myId: '76561198346755207', lines: base.lines.concat(['13:25:10  KH2 started (PID 18244).', '13:25:31  Steam session ready. Your SteamID: 76561198346755207']) });
     if (demo === 'waiting') Object.assign(base, { gameRunning: true, gamePid: 18244, myId: '76561198346755207', runtimeRunning: true, lines: base.lines.concat(['13:25:31  Steam session ready. Your SteamID: 76561198346755207', '13:26:02  Hosting for 76561199069387735. Waiting for the other player...']) });
     if (demo === 'connected') Object.assign(base, { world: 'Hollow Bastion', room: 'Postern', gameRunning: true, gamePid: 18244, myId: '76561198346755207', runtimeRunning: true, connected: true, ping: 42, loss: '0.3', lines: base.lines.concat(['13:26:02  Hosting for 76561199069387735. Waiting for the other player...', '13:31:10  Connected.']) });
@@ -400,6 +432,9 @@ h1 { margin: 0; font-size: 48px; line-height: 1; font-weight: 800; letter-spacin
   $('peerId').oninput = function () { if (st) $('peerId').classList.toggle('ok', /^\d{17}$/.test($('peerId').value) && $('peerId').value !== st.myId); };
   $('peerId').onblur = function () { editing.peerId = false; cmd('setPeer', { peerId: $('peerId').value.trim() }); };
   $('peerId').onkeydown = function (e) { if (e.key === 'Enter') { $('peerId').blur(); if (!$('btnConnect').disabled && !$('btnConnect').classList.contains('hide')) $('btnConnect').click(); } };
+  $('btnPaste').onclick = function () { cmd('pasteId'); };
+  $('btnRecent').onclick = function (e) { e.stopPropagation(); var o = $('recent').classList.toggle('open'); $('btnRecent').classList.toggle('on', o); };
+  document.addEventListener('click', function (e) { if (!$('peerRow').contains(e.target)) { $('recent').classList.remove('open'); $('btnRecent').classList.remove('on'); } });
   function connect() { cmd('connect', { peerId: st && st.mode === 'local' ? '' : $('peerId').value.trim() }); }
   $('btnConnect').onclick = connect;
   $('btnDisconnect').onclick = function () { cmd('disconnect'); };
