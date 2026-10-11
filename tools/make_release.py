@@ -31,11 +31,9 @@ def main() -> None:
         shutil.copyfile(src / f, stage / 'bin' / f)
     if (src / 'connected_hearts_relay.exe').exists():   # local relay for the solo test (optional)
         shutil.copyfile(src / 'connected_hearts_relay.exe', stage / 'bin' / 'connected_hearts_relay.exe')
-    for f in ('ConnectedHearts.exe', 'ConnectedHearts.exe.config', 'build.bat', 'README.md'):
+    for f in ('ConnectedHearts.exe', 'ConnectedHearts.exe.config'):
         shutil.copyfile(ROOT / f, stage / f)
-    (stage / 'src').mkdir()
-    for f in (ROOT / 'src').iterdir():
-        shutil.copyfile(f, stage / 'src' / f.name)
+    shutil.copyfile(ROOT / 'tools' / 'PACKAGE_README.md', stage / 'README.md')   # no repository links in the package
     (stage / 'ui').mkdir()
     for f in (ROOT / 'ui').iterdir():
         if f.is_file():

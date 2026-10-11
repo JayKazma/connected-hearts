@@ -1,5 +1,5 @@
-KH2 Co-op is built from Volpestyle/kh2-multiplayer (https://github.com/Volpestyle/kh2-multiplayer),
-licensed under the GNU General Public License v3.0 (GPL-3.0.txt). The binaries in bin\ are built from
-that source plus Sento's co-op changes; the corresponding source is available on request from the
-JayKazma/kh2-coop repository owner and will be published in that repository.
+Connected Hearts is built from Volpestyle/kh2-multiplayer (https://github.com/Volpestyle/kh2-multiplayer),
+licensed under the GNU General Public License v3.0 (GPL-3.0.txt). The binaries in bin\ are built from that
+source plus the Connected Hearts changes. The corresponding source code is available on request from the
+person who gave you these files, for at least three years from the date you received them.
 Third-party components linked into the binaries: MinHook (BSD-2-Clause), ENet (MIT).

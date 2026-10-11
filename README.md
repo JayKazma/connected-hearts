@@ -5,9 +5,9 @@ The other player appears in your party as Sora 2 — same room, same enemies, th
 
 ## Download
 
-**[ConnectedHearts.zip](https://github.com/JayKazma/connected-hearts/raw/main/dist/ConnectedHearts.zip)** — unzip it into a
-folder of your own (for example `Documents\Connected Hearts`) and run `ConnectedHearts.exe`. The launcher keeps itself up
-to date. Current version: see [`version.txt`](version.txt).
+**[ConnectedHeartsSetup.exe](https://github.com/JayKazma/connected-hearts/raw/main/dist/ConnectedHeartsSetup.exe)** — run it, pick a
+folder, and it installs the launcher with shortcuts. Prefer no installer? [ConnectedHearts.zip](https://github.com/JayKazma/connected-hearts/raw/main/dist/ConnectedHearts.zip)
+unpacks anywhere; run `ConnectedHearts.exe`. The launcher keeps itself up to date. Current version: see [`version.txt`](version.txt).
 
 Steam must be running and signed in.
 
@@ -58,6 +58,6 @@ Some antivirus engines flag unsigned, rarely-downloaded game mods by machine-lea
 change notes. Launchers read all three from `main`, so pushing `main` is the release.
 
     python tools/make_release.py --bin <folder with the mod binaries> --version 0.4.0 --notes "what changed"
-    sh tools/build_exe.sh        # rebuilds ConnectedHearts.exe (file details from version.txt)
+    sh tools/build_exe.sh        # rebuilds ConnectedHearts.exe and dist/ConnectedHeartsSetup.exe (file details from version.txt)
 
 Commit `version.txt`, `dist/` and `ConnectedHearts.exe`, push.

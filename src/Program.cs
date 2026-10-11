@@ -98,6 +98,7 @@ namespace ConnectedHearts
             };
             CleanOld(Root); CleanOld(Path.Combine(Root, "lib")); CleanOld(Path.Combine(Root, "bin"));
             try { File.Delete(Path.Combine(Root, "bin", "chctl.exe")); } catch { } // replaced by the game-folder loader (0.1.1)
+            try { File.Delete(Path.Combine(Root, "build.bat")); if (Directory.Exists(Path.Combine(Root, "src"))) Directory.Delete(Path.Combine(Root, "src"), true); } catch { } // no longer shipped
             bool created;
             using (var mutex = new Mutex(true, "ConnectedHeartsLauncher", out created))
             {
@@ -388,7 +389,7 @@ namespace ConnectedHearts
                     bool changed = CopyDir(src, Path.Combine(Root, d));
                     if (changed && (d == "lib" || d == "ui")) restart = true;   // wrappers are loaded and the page is already shown; both need a restart
                 }
-                foreach (var f in new[] { "version.txt", "CONNECTED-HEARTS-PACKAGE", "package.json", "README.md", "ConnectedHearts.exe.config", "build.bat" })
+                foreach (var f in new[] { "version.txt", "CONNECTED-HEARTS-PACKAGE", "package.json", "README.md", "ConnectedHearts.exe.config" })
                 {
                     string src = Path.Combine(stage, f); if (File.Exists(src)) ReplaceFile(src, Path.Combine(Root, f));
                 }
@@ -449,6 +450,8 @@ namespace ConnectedHearts
             env["KH2COOP_CAST_REPLAY"] = CastReplay ? "1" : "0";
             // The other player is always a second Sora (one-clone party).
             env["KH2COOP_PARTY_NATIVE"] = "1"; env["KH2COOP_NATIVE_SORA_PRIVATE_STATUS"] = "1"; env["KH2COOP_CLONE_NEUTRAL_INPUT"] = "1"; env["KH2COOP_ALLY_HIT"] = "1";
+            // Sora 2 also joins rooms that have no friend seat (the prologue); enemies follow the host (phase 1 list).
+            env["KH2COOP_FORCED_SEAT"] = "1"; env["KH2COOP_ENEMY_MIRROR"] = "1"; env["KH2COOP_SPAWN_PICK"] = "1";
             foreach (var kv in DevEnv) env[kv.Key] = kv.Value;
             if (DevEnv.Count > 0) Log("Test switches: " + string.Join(", ", DevEnv.Select(kv => kv.Key + "=" + kv.Value)));
             int count = local ? 2 : 1;
