@@ -27,7 +27,6 @@ namespace ConnectedHearts
         [DllImport("user32.dll")] public static extern bool ReleaseCapture();
         [DllImport("user32.dll")] public static extern IntPtr SendMessage(IntPtr h, int msg, IntPtr w, IntPtr l);
         [DllImport("dwmapi.dll")] public static extern int DwmSetWindowAttribute(IntPtr h, int attr, ref int value, int size);
-        [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)] public static extern bool DeleteFile(string name);
         [DllImport("user32.dll")] public static extern bool SetWindowPos(IntPtr h, IntPtr after, int x, int y, int w, int hgt, uint flags);
         [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr h);
         [DllImport("user32.dll")] public static extern bool IsIconic(IntPtr h);
@@ -80,17 +79,6 @@ namespace ConnectedHearts
             }
             return moved > 0 ? 1 : 2;
         }
-
-        // Remove the "downloaded from the internet" flag (Zone.Identifier stream) that makes .NET refuse to load DLLs.
-        public static void Unblock(string dir)
-        {
-            try
-            {
-                if (!Directory.Exists(dir)) return;
-                foreach (var f in Directory.GetFiles(dir, "*", SearchOption.AllDirectories)) { try { DeleteFile(f + ":Zone.Identifier"); } catch { } }
-            }
-            catch { }
-        }
     }
 
     static class Program
@@ -102,7 +90,6 @@ namespace ConnectedHearts
         {
             Root = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
             try { if (!Native.SetProcessDpiAwarenessContext((IntPtr)(-4))) Native.SetProcessDPIAware(); } catch { try { Native.SetProcessDPIAware(); } catch { } }
-            foreach (var d in new[] { "lib", "bin", "ui" }) Native.Unblock(Path.Combine(Root, d));
             AppDomain.CurrentDomain.AssemblyResolve += delegate(object s, ResolveEventArgs e)
             {
                 string name = new AssemblyName(e.Name).Name + ".dll";
@@ -110,6 +97,7 @@ namespace ConnectedHearts
                 return File.Exists(p) ? Assembly.UnsafeLoadFrom(p) : null;
             };
             CleanOld(Root); CleanOld(Path.Combine(Root, "lib")); CleanOld(Path.Combine(Root, "bin"));
+            try { File.Delete(Path.Combine(Root, "bin", "chctl.exe")); } catch { } // replaced by the game-folder loader (0.1.1)
             bool created;
             using (var mutex = new Mutex(true, "ConnectedHeartsLauncher", out created))
             {
@@ -143,7 +131,7 @@ namespace ConnectedHearts
     // ------------------------------------------------------------------ launcher logic
     class Core
     {
-        public readonly string Root, Bin, Kh2ctl, Runtime, Dll, Relay, Logs, SettingsFile, VersionFile;
+        public readonly string Root, Bin, Loader, Runtime, Dll, Relay, Logs, SettingsFile, VersionFile;
         const string UpdateBase = "https://raw.githubusercontent.com/JayKazma/connected-hearts/main";
         const string GameExe = "KINGDOM HEARTS II FINAL MIX.exe";
         const int RelayPort = 7782;
@@ -181,7 +169,7 @@ namespace ConnectedHearts
         public Core(string root)
         {
             Root = root; Bin = Path.Combine(root, "bin");
-            Kh2ctl = Path.Combine(Bin, "chctl.exe"); Runtime = Path.Combine(Bin, "connected_hearts_runtime.exe");
+            Loader = Path.Combine(Bin, "winmm.dll"); Runtime = Path.Combine(Bin, "connected_hearts_runtime.exe");
             Dll = Path.Combine(Bin, "connected_hearts.dll"); Relay = Path.Combine(Bin, "connected_hearts_relay.exe");
             Logs = Path.Combine(root, @"build\rig\logs"); SettingsFile = Path.Combine(root, "settings.json"); VersionFile = Path.Combine(root, "version.txt");
             ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
@@ -407,7 +395,6 @@ namespace ConnectedHearts
                 string newExe = Path.Combine(stage, "ConnectedHearts.exe"), me = Path.Combine(Root, "ConnectedHearts.exe");
                 if (File.Exists(newExe) && !SameFile(newExe, me)) { ReplaceFile(newExe, me); restart = true; }
                 try { Directory.Delete(stage, true); } catch { }
-                foreach (var d in new[] { "lib", "bin", "ui" }) Native.Unblock(Path.Combine(Root, d));
                 Update = ""; UpdateText = "up to date";
                 Log("Updated to " + LocalVersion() + ".");
                 if (restart) { Log("Launcher updated, restarting..."); RestartAfterExit = true; if (Exit != null) Exit(); }
@@ -452,7 +439,7 @@ namespace ConnectedHearts
         {
             string dir = (GameDir ?? "").Trim(new[] { '"' }).TrimEnd(new[] { '\\' });
             if (!File.Exists(Path.Combine(dir, GameExe))) { Problem = "Game folder is wrong"; Log("Game folder is wrong: " + GameExe + " not found in '" + dir + "'."); return; }
-            foreach (var f in new[] { Kh2ctl, Runtime, Dll }) if (!File.Exists(f)) { Problem = "Files missing"; Log("Missing " + f + ". Check for updates."); return; }
+            foreach (var f in new[] { Loader, Runtime, Dll }) if (!File.Exists(f)) { Problem = "Files missing"; Log("Missing " + f + ". Check for updates."); return; }
             bool local = Mode == "local";
             if (local && !File.Exists(Relay)) { Problem = "Relay missing"; Log(@"Solo test needs bin\connected_hearts_relay.exe (the local relay). Check for updates."); return; }
             if (launchTask != null) return;
@@ -465,6 +452,7 @@ namespace ConnectedHearts
             foreach (var kv in DevEnv) env[kv.Key] = kv.Value;
             if (DevEnv.Count > 0) Log("Test switches: " + string.Join(", ", DevEnv.Select(kv => kv.Key + "=" + kv.Value)));
             int count = local ? 2 : 1;
+            if (!InstallLoader(dir)) return;
             BackupSaves();
             Log(local ? "Starting two copies of KH2 (solo test)..." : "Starting KH2...");
             Launching = true;
@@ -477,7 +465,7 @@ namespace ConnectedHearts
                     // window 1 (the host) writes it; window 2's saves go to a throwaway copy.
                     var envI = new Dictionary<string, string>(env);
                     if (i == 0) envI["KH2COOP_SAVEGUARD"] = "0";
-                    all.AddRange(RunCapture(Kh2ctl, "launch --game-dir \"" + dir + "\" --dll \"" + Dll + "\"", envI));
+                    all.Add(LaunchOne(dir, envI));
                     if (i < count - 1) Thread.Sleep(3000);
                 }
                 return all.ToArray();
@@ -498,6 +486,72 @@ namespace ConnectedHearts
                 Log("Saves backed up to save-backups\\" + Path.GetFileName(dst) + ".");
             }
             catch (Exception ex) { Log("Save backup failed: " + ex.Message); }
+        }
+        // ---- the game-folder loader
+        // bin\winmm.dll is copied next to the game for a session. Windows loads it with the game; it passes
+        // every winmm call to the system winmm.dll and loads the mod only when this launcher started KH2
+        // (KH2COOP_MOD_DLL). It is removed again once no game from this launcher is running.
+        const string LoaderTag = "connected-hearts-loader-v1";
+        string loaderDir; int coreTicks;
+        static bool IsOurLoader(string path)
+        {
+            try { var b = File.ReadAllBytes(path); var tag = System.Text.Encoding.ASCII.GetBytes(LoaderTag); for (int i = 0; i + tag.Length <= b.Length; i++) { int k = 0; while (k < tag.Length && b[i + k] == tag[k]) k++; if (k == tag.Length) return true; } } catch { }
+            return false;
+        }
+        bool InstallLoader(string dir)
+        {
+            string dst = Path.Combine(dir, "winmm.dll");
+            try
+            {
+                if (File.Exists(dst) && !IsOurLoader(dst))
+                {
+                    Problem = "Another mod uses winmm.dll";
+                    Log("The game folder already has a winmm.dll from another mod. Connected Hearts won't replace it. Remove it to play co-op (" + dst + ").");
+                    return false;
+                }
+                if (!SameFile(Loader, dst)) File.Copy(Loader, dst, true);
+                loaderDir = dir;
+                return true;
+            }
+            catch (Exception ex) { Problem = "Loader not installed"; Log("Could not put the loader in the game folder: " + ex.Message); return false; }
+        }
+        // Called on every tick and at start/exit: removes our winmm.dll once no game of ours runs.
+        public void RemoveLoaderIfIdle()
+        {
+            string dir = loaderDir ?? (GameDir ?? "").Trim(new[] { '"' }).TrimEnd(new[] { '\\' });
+            if (string.IsNullOrEmpty(dir) || Launching || GameAlive || Game2Alive) return;
+            string dst = Path.Combine(dir, "winmm.dll");
+            try { if (File.Exists(dst) && IsOurLoader(dst)) { File.Delete(dst); Log("Loader removed from the game folder."); } loaderDir = null; } catch { }
+        }
+        // Starts one KH2 with the session settings; the loader loads the mod at the game's entry point.
+        string LaunchOne(string dir, Dictionary<string, string> env)
+        {
+            try
+            {
+                string stage = Path.Combine(Root, @"build\rig\dll");
+                Directory.CreateDirectory(stage); Directory.CreateDirectory(Logs);
+                foreach (var old in Directory.GetFiles(stage, "connected_hearts_*.dll")) { try { File.Delete(old); } catch { } } // in use while a game runs
+                string dll = Path.Combine(stage, "connected_hearts_" + DateTime.Now.Ticks + ".dll"); // a copy, so updates can replace bin\
+                File.Copy(Dll, dll, true);
+                var psi = new ProcessStartInfo(Path.Combine(dir, GameExe)) { WorkingDirectory = dir, UseShellExecute = false };
+                foreach (var k in Environment.GetEnvironmentVariables().Keys.Cast<string>().Where(k => k.StartsWith("KH2COOP_")).ToList()) psi.EnvironmentVariables.Remove(k);
+                foreach (var kv in env) psi.EnvironmentVariables[kv.Key] = kv.Value;
+                psi.EnvironmentVariables["KH2COOP_MOD_DLL"] = dll;
+                psi.EnvironmentVariables["KH2COOP_LOG_DIR"] = Logs;
+                var p = Process.Start(psi);
+                string log = Path.Combine(Logs, "connected_hearts_" + p.Id + ".log");
+                var until = DateTime.UtcNow.AddSeconds(60);
+                while (DateTime.UtcNow < until)
+                {
+                    if (p.HasExited) return "{\"ok\":false,\"error\":\"KH2 exited during startup (code " + p.ExitCode + ")\"}";
+                    string text = ""; try { if (File.Exists(log)) text = ReadShared(log); } catch { }
+                    if (text.Contains("InputCollector hook installed")) return "{\"ok\":true,\"processId\":" + p.Id + "}";
+                    if (text.Contains("ERROR")) return "{\"ok\":false,\"error\":\"the mod reported an error at startup; see the log\",\"processId\":" + p.Id + "}";
+                    Thread.Sleep(250);
+                }
+                return "{\"ok\":false,\"error\":\"the mod did not start within 60 s (is the loader in the game folder?)\",\"processId\":" + p.Id + "}";
+            }
+            catch (Exception ex) { return "{\"ok\":false,\"error\":" + json.Serialize(ex.Message) + "}"; }
         }
         static void CopyTree(string src, string dst)
         {
@@ -736,8 +790,6 @@ namespace ConnectedHearts
         public void CloseGame()
         {
             StopRuntime();
-            if (GameAlive) { try { RunCapture(Kh2ctl, "kill --all", null); } catch { } }
-            Thread.Sleep(500);
             foreach (var pid in new[] { GamePid, GamePid2 }) if (Alive(pid)) { try { Process.GetProcessById(pid).Kill(); } catch { } }
             GamePid = GamePid2 = 0; MyId = ""; Problem = "";
             Log("Game closed.");
@@ -830,12 +882,13 @@ namespace ConnectedHearts
                 if (Mode == "local" && GameAlive && Game2Alive && tileTries < 500) { tileTries++; int t = Native.Tile(GamePid, GamePid2, TileBorderless); if (t == 1 && !tiled) { tiled = true; Log("Game windows tiled side by side."); } }
                 if (!GameAlive) { tiled = false; tileTries = 0; }
                 if (runtimeA != null && !Alive(runtimeA)) { runtimeA = null; Connected = false; Ping = null; Loss = null; Log("Co-op program exited."); if (Alive(runtimeB) || Alive(relay)) StopRuntime(); }
+                if (++coreTicks % 10 == 0) RemoveLoaderIfIdle();
                 if (GamePid != 0 && !GameAlive) { Log("KH2 closed."); GamePid = 0; MyId = ""; StopRuntime(); if (Game2Alive) { try { Process.GetProcessById(GamePid2).Kill(); } catch { } } GamePid2 = 0; }
                 else if (GamePid2 != 0 && !Game2Alive) { Log("Second KH2 closed."); GamePid2 = 0; StopRuntime(); }
             }
             catch (Exception ex) { Log("Error: " + ex.Message); }
         }
-        public void Shutdown() { StopRuntime(); }
+        public void Shutdown() { StopRuntime(); RemoveLoaderIfIdle(); }
     }
 
     // ------------------------------------------------------------------ window

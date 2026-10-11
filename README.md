@@ -5,12 +5,14 @@ The other player appears in your party as Sora 2 — same room, same enemies, th
 
 ## Download
 
-**[ConnectedHeartsSetup.exe](https://github.com/JayKazma/connected-hearts/raw/main/dist/ConnectedHeartsSetup.exe)** — run it, pick a folder, and it installs the launcher with shortcuts.
-The launcher keeps itself up to date. Current version: see [`version.txt`](version.txt).
+**[ConnectedHearts.zip](https://github.com/JayKazma/connected-hearts/raw/main/dist/ConnectedHearts.zip)** — unzip it into a
+folder of your own (for example `Documents\Connected Hearts`) and run `ConnectedHearts.exe`. The launcher keeps itself up
+to date. Current version: see [`version.txt`](version.txt).
 
-Prefer a zip? [`dist/connected-hearts-update.zip`](dist/connected-hearts-update.zip) unpacks anywhere; run `ConnectedHearts.exe`.
+Steam must be running and signed in.
 
-Steam must be running and signed in. Windows Defender may ask once about the mod's DLL; allow it.
+The files are not code-signed yet, so Windows may show "Windows protected your PC" the first time. Don't turn off your
+antivirus for this. Check the files first (see **Safety** below), and only then choose More info, Run anyway.
 
 ## Play
 
@@ -26,12 +28,29 @@ Steam must be running and signed in. Windows Defender may ask once about the mod
 | | |
 | --- | --- |
 | `ConnectedHearts.exe` | The launcher (C#, .NET Framework 4.x, WebView2). Source in `src\`, page in `ui\` |
-| `bin\` | The mod: `connected_hearts.dll` (runs inside KH2), `connected_hearts_runtime.exe` (Steam session), `connected_hearts_relay.exe` (local relay), `chctl.exe` (launches the game) |
+| `bin\` | The mod: `connected_hearts.dll` (runs inside KH2), `winmm.dll` (the loader, see below), `connected_hearts_runtime.exe` (Steam session), `connected_hearts_relay.exe` (local relay) |
 | `lib\` | Microsoft WebView2 wrappers |
 | `settings.json` | Game folder, mode and SteamIDs |
 | `build\rig\logs\` | Game, Steam and co-op logs — **Collect logs** in the launcher zips them for a bug report |
 
 The mod's source is in [connected-hearts-mod](https://github.com/JayKazma/connected-hearts-mod) (GPL-3.0).
+
+## Safety
+
+What it does:
+
+- **How the mod gets into the game.** For a session, the launcher copies `bin\winmm.dll` into the game folder. KH2 loads
+  that file by name at startup; it passes every call on to Windows' own `winmm.dll`, and loads `connected_hearts.dll`
+  only when this launcher started the game. Started from Steam, the game runs untouched. The launcher deletes the file
+  again once its games have closed. If another mod already has a `winmm.dll` there, the launcher stops and tells you
+  instead of replacing it.
+- **Internet.** The launcher downloads its updates from this repository and reads public Steam profile pages for player
+  names. Co-op traffic goes through Steam to the one SteamID you enter. Nothing is uploaded anywhere.
+- **Files.** Its own folder (settings, logs, crash dumps), copies of your KH2 saves in `save-backups\` before each start,
+  and the loader in the game folder during a session. The clipboard is read only when you press Paste ID.
+
+Some antivirus engines flag unsigned, rarely-downloaded game mods by machine-learning guesses (names ending in `!ml`,
+"Heuristic", "Static AI", "confidence"). The source for every file is public in this repository and the mod's.
 
 ## Releasing a version
 
@@ -39,6 +58,6 @@ The mod's source is in [connected-hearts-mod](https://github.com/JayKazma/connec
 change notes. Launchers read all three from `main`, so pushing `main` is the release.
 
     python tools/make_release.py --bin <folder with the mod binaries> --version 0.4.0 --notes "what changed"
-    sh tools/build_exe.sh        # rebuilds ConnectedHearts.exe and dist/ConnectedHeartsSetup.exe
+    sh tools/build_exe.sh        # rebuilds ConnectedHearts.exe (file details from version.txt)
 
 Commit `version.txt`, `dist/` and `ConnectedHearts.exe`, push.
