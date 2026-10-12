@@ -149,6 +149,7 @@ namespace ConnectedHearts
         public Dictionary<string, string> DevEnv = new Dictionary<string, string>();
         readonly HashSet<string> resolving = new HashSet<string>();
         public string World = "", Room = ""; // from the runtime's room-state lines
+        Dictionary<string, object> PartyMe, PartyPeer; // from the runtime's [Party] lines (player cards)
         bool tiled; int tileTries;
         public bool TileBorderless = true; // solo test: the two game windows meet edge to edge (settings.json "tileBorderless")
         public bool CastReplay = true;     // replay the other player's magic/items on their clone (settings.json "castReplay")
@@ -266,7 +267,7 @@ namespace ConnectedHearts
                 { "game2Running", Game2Alive }, { "gamePid2", GamePid2 }, { "relayAvailable", File.Exists(Relay) },
                 { "runtimeRunning", RuntimeAlive }, { "connected", Connected }, { "ping", Ping }, { "loss", Loss }, { "problem", Problem },
                 { "native", true }, { "saveLoaded", SaveLoaded }, { "lines", l }, { "recent", new List<string>(Recent) }, { "names", NamesSnapshot() },
-                { "world", World }, { "room", Room }, { "tiled", tiled }
+                { "world", World }, { "room", Room }, { "tiled", tiled }, { "partyMe", PartyMe }, { "partyPeer", PartyPeer }
             };
             return json.Serialize(d);
         }
@@ -728,8 +729,40 @@ namespace ConnectedHearts
             { 0x1217, "The World of Nothing" }, { 0x1218, "The World of Nothing" }, { 0x1219, "The World of Nothing" }, { 0x121A, "The World of Nothing" },
             { 0x121B, "The World of Nothing" }, { 0x121C, "The World of Nothing" }, { 0x121D, "The World of Nothing" },
         };
+        static readonly Dictionary<int, string> Keyblades = new Dictionary<int, string>
+        {
+            { 41, "Kingdom Key" }, { 42, "Oathkeeper" }, { 43, "Oblivion" }, { 480, "Star Seeker" }, { 481, "Hidden Dragon" },
+            { 484, "Hero's Crest" }, { 485, "Monochrome" }, { 486, "Follow the Wind" }, { 487, "Circle of Life" },
+            { 488, "Photon Debugger" }, { 489, "Gull Wing" }, { 490, "Rumbling Rose" }, { 491, "Guardian Soul" },
+            { 492, "Wishing Lamp" }, { 493, "Decisive Pumpkin" }, { 494, "Sleeping Lion" }, { 495, "Sweet Memories" },
+            { 496, "Mysterious Abyss" }, { 497, "Fatal Crest" }, { 498, "Bond of Flame" }, { 499, "Fenrir" },
+            { 500, "Ultima Weapon" }, { 543, "Two Become One" }, { 544, "Winner's Proof" },
+        };
+        // "lv=12 hp=40/40 mp=100/100 kb=41 world=2 room=5 paused=0" -> card fields; null for "-".
+        static Dictionary<string, object> PartyStats(string part)
+        {
+            var m = Regex.Match(part, @"lv=(\d+) hp=(-?\d+)/(-?\d+) mp=(-?\d+)/(-?\d+) kb=(\d+) world=(\d+) room=(\d+) paused=(\d)");
+            if (!m.Success) return null;
+            Func<int, int> g = i => int.Parse(m.Groups[i].Value);
+            int w = g(7), r = g(8), kb = g(6);
+            string name;
+            var d = new Dictionary<string, object>();
+            if (g(1) > 0) d["level"] = g(1);
+            if (g(3) > 0) { d["hp"] = g(2); d["maxHp"] = g(3); }
+            if (g(5) > 0) { d["mp"] = g(4); d["maxMp"] = g(5); }
+            if (kb != 0) d["keyblade"] = Keyblades.TryGetValue(kb, out name) ? name : "Keyblade";
+            if (w != 0 || r != 0)
+            {
+                d["world"] = WorldNames.TryGetValue(w, out name) ? name : "World " + w.ToString("X2");
+                d["room"] = RoomNames.TryGetValue((w << 8) | r, out name) ? name : "Room " + r.ToString("X2");
+            }
+            d["paused"] = g(9) == 1;
+            return d;
+        }
         void ParseRuntimeLine(string line)
         {
+            var party = Regex.Match(line, @"^\[Party\] me (.*) \| peer (.*)$");
+            if (party.Success) { PartyMe = PartyStats(party.Groups[1].Value); PartyPeer = PartyStats(party.Groups[2].Value); return; }
             var rs = Regex.Match(line, @"Room state: world=(\d+) room=(\d+)");
             if (rs.Success)
             {
@@ -787,7 +820,7 @@ namespace ConnectedHearts
         {
             bool was = RuntimeAlive;
             foreach (var p in new[] { runtimeA, runtimeB, relay }) { if (Alive(p)) { try { p.Kill(); } catch { } } }
-            runtimeA = runtimeB = relay = null; Connected = false; Ping = null; Loss = null; World = ""; Room = "";
+            runtimeA = runtimeB = relay = null; Connected = false; Ping = null; Loss = null; World = ""; Room = ""; PartyMe = PartyPeer = null;
             if (was) Log("Disconnected.");
         }
         public void CloseGame()
