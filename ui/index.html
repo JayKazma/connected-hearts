@@ -361,7 +361,7 @@ img.av { object-fit: cover; }
     $('segHost').classList.toggle('on', s.mode === 'host'); $('segJoin').classList.toggle('on', join); $('segLocal').classList.toggle('on', local);
     var lockMode = rt || running || launching;
     $('segHost').disabled = lockMode; $('segJoin').disabled = lockMode; $('segLocal').disabled = lockMode; $('peerId').disabled = rt;
-    $('peerId').placeholder = join ? "Host's SteamID" : "Friend's SteamID";
+    $('peerId').placeholder = join ? "Host's SteamID" : "Friend's SteamID (optional)";
     $('peerRow').classList.toggle('hide', local); $('localNote').classList.toggle('hide', !local);
     $('peerId').classList.toggle('ok', /^\d{17}$/.test($('peerId').value) && $('peerId').value !== s.myId);
 

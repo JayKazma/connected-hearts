@@ -800,20 +800,26 @@ namespace ConnectedHearts
             if (!GameAlive || MyId.Length == 0) { Log("Start the game first and wait for your SteamID."); return; }
             if (!SaveLoaded) { Log("Load your save first, then connect."); return; }
             peer = (peer ?? "").Trim();
-            if (!Regex.IsMatch(peer, @"^\d{17}$")) { Log("Enter the other player's 17-digit SteamID."); return; }
-            if (peer == MyId) { Log("That is your own SteamID. Enter the other player's."); return; }
             bool isHost = Mode != "join";
-            if (isHost) FriendId = peer; else HostId = peer;
-            Recent.Remove(peer); Recent.Insert(0, peer); if (Recent.Count > 6) Recent.RemoveRange(6, Recent.Count - 6);
-            SaveSettings(); ResolveName(peer); ResolveName(MyId);
+            // A host with no SteamID entered is open to any of its Steam friends (they can come in through Discord's Join).
+            bool openToFriends = isHost && peer.Length == 0;
+            if (!openToFriends && !Regex.IsMatch(peer, @"^\d{17}$")) { Log(isHost ? "Enter your friend's 17-digit SteamID, or leave it empty to let any Steam friend join." : "Enter the host's 17-digit SteamID."); return; }
+            if (peer == MyId) { Log("That is your own SteamID. Enter the other player's."); return; }
+            if (!openToFriends)
+            {
+                if (isHost) FriendId = peer; else HostId = peer;
+                Recent.Remove(peer); Recent.Insert(0, peer); if (Recent.Count > 6) Recent.RemoveRange(6, Recent.Count - 6);
+                ResolveName(peer);
+            }
+            SaveSettings(); ResolveName(MyId);
             string ini = WriteIni();
             string desync = Path.Combine(Root, @"build\rig\steam-desync-" + DateTime.Now.ToString("yyyyMMdd-HHmmss"));
             string role = isHost ? "player" : "friend1";
-            string steamArgs = isHost ? "--steam-host --steam-allow " + peer : "--steam-join " + peer;
+            string steamArgs = !isHost ? "--steam-join " + peer : openToFriends ? "--steam-host --steam-friends" : "--steam-host --steam-allow " + peer;
             string args = "--config \"" + ini + "\" --mode campaign_coop --network " + steamArgs + " --pid " + GamePid + " --role " + role + " --peer-id " + role + " --no-camera --tick-ms 16 --max-ticks 112500 --desync-dir \"" + desync + "\"";
             Connected = false; Ping = null; Loss = null; Problem = "";
             runtimeA = StartHidden(Runtime, args, Path.Combine(Logs, "runtime_" + GamePid + "_" + DateTime.Now.ToString("HHmmss") + ".log"), true);
-            Log((isHost ? "Hosting; allowing " + peer + ". " : "Joining " + peer + ". ") + "Waiting for the other player...");
+            Log((openToFriends ? "Hosting for your Steam friends. " : isHost ? "Hosting; allowing " + peer + ". " : "Joining " + peer + ". ") + "Waiting for the other player...");
         }
         void StartLocal()
         {
