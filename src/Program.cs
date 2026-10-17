@@ -7,6 +7,7 @@ using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.IO.Compression;
+using System.IO.Pipes;
 using System.Linq;
 using System.Net;
 using System.Reflection;
@@ -149,10 +150,14 @@ namespace ConnectedHearts
         public Dictionary<string, string> DevEnv = new Dictionary<string, string>();
         readonly HashSet<string> resolving = new HashSet<string>();
         public string World = "", Room = ""; // from the runtime's room-state lines
+        int WorldId = -1;
         Dictionary<string, object> PartyMe, PartyPeer; // from the runtime's [Party] lines (player cards)
         bool tiled; int tileTries;
         public bool TileBorderless = true; // solo test: the two game windows meet edge to edge (settings.json "tileBorderless")
         public bool CastReplay = true;     // replay the other player's magic/items on their clone (settings.json "castReplay")
+        public bool DiscordStatus = true;  // show the session in Discord (settings.json "discordStatus")
+        readonly DiscordPresence discord = new DiscordPresence();
+        long sessionStart;                 // unix seconds when the current game started (Discord timer)
 
         // state
         public int GamePid, GamePid2;
@@ -213,6 +218,7 @@ namespace ConnectedHearts
                 if (d.TryGetValue("gameDir", out v) && v != null) GameDir = v.ToString();
                 if (d.TryGetValue("tileBorderless", out v) && v is bool) TileBorderless = (bool)v;
                 if (d.TryGetValue("castReplay", out v) && v is bool) CastReplay = (bool)v;
+                if (d.TryGetValue("discordStatus", out v) && v is bool) DiscordStatus = (bool)v;
                 if (d.TryGetValue("mode", out v) && v != null) Mode = v.ToString();
                 if (d.TryGetValue("hostId", out v) && v != null) HostId = v.ToString();
                 if (d.TryGetValue("friendId", out v) && v != null) FriendId = v.ToString();
@@ -231,7 +237,7 @@ namespace ConnectedHearts
         {
             try
             {
-                var d = new Dictionary<string, object> { { "gameDir", GameDir }, { "tileBorderless", TileBorderless }, { "castReplay", CastReplay }, { "mode", Mode }, { "hostId", HostId }, { "friendId", FriendId }, { "recent", Recent }, { "names", Names } };
+                var d = new Dictionary<string, object> { { "gameDir", GameDir }, { "tileBorderless", TileBorderless }, { "castReplay", CastReplay }, { "discordStatus", DiscordStatus }, { "mode", Mode }, { "hostId", HostId }, { "friendId", FriendId }, { "recent", Recent }, { "names", Names } };
                 if (DevEnv.Count > 0) d["devEnv"] = DevEnv;
                 File.WriteAllText(SettingsFile, json.Serialize(d), Encoding.UTF8);
             }
@@ -757,6 +763,7 @@ namespace ConnectedHearts
                 d["room"] = RoomNames.TryGetValue((w << 8) | r, out name) ? name : "Room " + r.ToString("X2");
             }
             d["paused"] = g(9) == 1;
+            d["worldId"] = w;
             return d;
         }
         void ParseRuntimeLine(string line)
@@ -767,7 +774,7 @@ namespace ConnectedHearts
             if (rs.Success)
             {
                 int w = int.Parse(rs.Groups[1].Value), r = int.Parse(rs.Groups[2].Value);
-                string name; World = WorldNames.TryGetValue(w, out name) ? name : "World " + w.ToString("X2");
+                string name; World = WorldNames.TryGetValue(w, out name) ? name : "World " + w.ToString("X2"); WorldId = w;
                 Room = RoomNames.TryGetValue((w << 8) | r, out name) ? name : "Room " + r.ToString("X2");
                 return;
             }
@@ -820,7 +827,7 @@ namespace ConnectedHearts
         {
             bool was = RuntimeAlive;
             foreach (var p in new[] { runtimeA, runtimeB, relay }) { if (Alive(p)) { try { p.Kill(); } catch { } } }
-            runtimeA = runtimeB = relay = null; Connected = false; Ping = null; Loss = null; World = ""; Room = ""; PartyMe = PartyPeer = null;
+            runtimeA = runtimeB = relay = null; Connected = false; Ping = null; Loss = null; World = ""; Room = ""; WorldId = -1; PartyMe = PartyPeer = null;
             if (was) Log("Disconnected.");
         }
         public void CloseGame()
@@ -919,12 +926,152 @@ namespace ConnectedHearts
                 if (!GameAlive) { tiled = false; tileTries = 0; }
                 if (runtimeA != null && !Alive(runtimeA)) { runtimeA = null; Connected = false; Ping = null; Loss = null; Log("Co-op program exited."); if (Alive(runtimeB) || Alive(relay)) StopRuntime(); }
                 if (++coreTicks % 10 == 0) RemoveLoaderIfIdle();
+                UpdateDiscord();
                 if (GamePid != 0 && !GameAlive) { Log("KH2 closed."); GamePid = 0; MyId = ""; StopRuntime(); if (Game2Alive) { try { Process.GetProcessById(GamePid2).Kill(); } catch { } } GamePid2 = 0; }
                 else if (GamePid2 != 0 && !Game2Alive) { Log("Second KH2 closed."); GamePid2 = 0; StopRuntime(); }
             }
             catch (Exception ex) { Log("Error: " + ex.Message); }
         }
-        public void Shutdown() { StopRuntime(); RemoveLoaderIfIdle(); }
+        public void Shutdown() { StopRuntime(); RemoveLoaderIfIdle(); discord.Set(null); discord.Flush(); }
+
+        // ---- Discord status. World pictures are the KH wiki's KHII images, linked by URL (Discord fetches them).
+        static readonly Dictionary<int, string> WorldArt = new Dictionary<int, string>
+        {
+            { 0x02, "2/2d/Twilight_Town_Screen_Fade_KHII.png" }, { 0x03, "5/58/Destiny_Islands_KHII.png" },
+            { 0x04, "b/b3/Hollow_Bastion_KHII.png" }, { 0x05, "0/06/Beast%27s_Castle_KHII.png" },
+            { 0x06, "8/82/Olympus_Coliseum_KHII.png" }, { 0x07, "3/31/Agrabah_KHII.png" },
+            { 0x08, "4/45/The_Land_of_Dragons_KHII.png" }, { 0x09, "6/66/100_Acre_Wood_KHII.png" },
+            { 0x0A, "2/24/Pride_Lands_KHII.png" }, { 0x0B, "c/c8/Atlantica_KHII.png" },
+            { 0x0C, "b/bd/Disney_Castle_KHII.png" }, { 0x0D, "a/a0/Timeless_River_KHII.png" },
+            { 0x0E, "9/92/Halloween_Town_KHII.png" }, { 0x10, "d/df/Port_Royal_KHII.png" },
+            { 0x11, "5/5a/Space_Paranoids_KHII.png" }, { 0x12, "e/e6/The_World_That_Never_Was_KHII.png" },
+        };
+        const string ArtBase = "https://kh.wiki.gallery/images/", GameLogo = ArtBase + "8/86/Kingdom_Hearts_II_Logo_KHII.png";
+        static string Clip(string s, int max) { return s.Length <= max ? s : s.Substring(0, max - 1) + "\u2026"; }
+        void UpdateDiscord()
+        {
+            if (!DiscordStatus || !GameAlive) { sessionStart = 0; discord.Set(null); return; }
+            if (sessionStart == 0) sessionStart = (long)(DateTime.UtcNow - new DateTime(1970, 1, 1)).TotalSeconds;
+            if (!discord.Started) discord.Start();
+            var me = PartyMe;
+            object o;
+            string world = me != null && me.TryGetValue("world", out o) ? (string)o : World;
+            string room = me != null && me.TryGetValue("room", out o) ? (string)o : Room;
+            int worldId = me != null && me.TryGetValue("worldId", out o) ? (int)o : WorldId;
+            bool paused = me != null && me.TryGetValue("paused", out o) && (bool)o;
+            int level = me != null && me.TryGetValue("level", out o) ? (int)o : 0;
+            string details = !string.IsNullOrEmpty(world) ? world + (string.IsNullOrEmpty(room) ? "" : " \u00b7 " + room) : "Kingdom Hearts II Final Mix";
+            string state = Mode == "local" ? "Solo test" : Connected ? "Co-op" : RuntimeAlive ? (Mode == "join" ? "Joining a friend" : "Waiting for a friend") : "Playing solo";
+            if (level > 0) state += " \u00b7 Lv " + level;
+            if (paused) state = "Paused \u00b7 " + state;
+            string art;
+            var assets = new Dictionary<string, object>();
+            if (worldId >= 0 && WorldArt.TryGetValue(worldId, out art))
+            {
+                assets["large_image"] = ArtBase + art; assets["large_text"] = Clip(world, 128);
+                assets["small_image"] = GameLogo; assets["small_text"] = "Connected Hearts";
+            }
+            else { assets["large_image"] = GameLogo; assets["large_text"] = "Connected Hearts"; }
+            var activity = new Dictionary<string, object>
+            {
+                { "details", Clip(details, 128) }, { "state", Clip(state, 128) },
+                { "timestamps", new Dictionary<string, object> { { "start", sessionStart } } }, { "assets", assets },
+            };
+            if (Connected && Mode != "local")
+                activity["party"] = new Dictionary<string, object> { { "id", "ch-" + sessionStart }, { "size", new[] { 2, 2 } } };
+            discord.Set(json.Serialize(activity));
+        }
+    }
+
+    // ------------------------------------------------------------------ Discord status
+    // Discord's local IPC (named pipe discord-ipc-N): handshake (op 0) with the app id, then SET_ACTIVITY
+    // frames (op 1). Frames are a little-endian op and length, then UTF-8 JSON. Runs on its own thread so a
+    // missing or slow Discord never stalls the window; sends only changes, at most one every 5 s.
+    class DiscordPresence
+    {
+        const string ClientId = "1560828967324491876";
+        readonly object sync = new object();
+        string want, sent = "\u0001";
+        bool haveWant;
+        DateTime lastSend = DateTime.MinValue, lastConnect = DateTime.MinValue;
+        NamedPipeClientStream pipe;
+        Thread thread;
+        readonly int pid = Process.GetCurrentProcess().Id;
+        public bool Started { get { return thread != null; } }
+        public void Start() { thread = new Thread(Run) { IsBackground = true, Name = "discord-status" }; thread.Start(); }
+        public void Set(string activityJson) { lock (sync) { want = activityJson; haveWant = true; } }
+        // On exit: clear the status now (Discord also clears it when the pipe closes).
+        public void Flush() { try { lock (sync) { if (pipe != null && pipe.IsConnected && sent != null) SendActivity(null); } } catch { } Close(); }
+        void Run()
+        {
+            for (;;)
+            {
+                try
+                {
+                    string w; bool has;
+                    lock (sync) { w = want; has = haveWant; }
+                    if (has && w != sent && (DateTime.UtcNow - lastSend).TotalSeconds >= 5 && Connect())
+                    {
+                        lock (sync) SendActivity(w);
+                        sent = w; lastSend = DateTime.UtcNow;
+                    }
+                }
+                catch { Close(); }
+                Thread.Sleep(1000);
+            }
+        }
+        bool Connect()
+        {
+            if (pipe != null && pipe.IsConnected) return true;
+            Close();
+            if ((DateTime.UtcNow - lastConnect).TotalSeconds < 15) return false;
+            lastConnect = DateTime.UtcNow;
+            for (int i = 0; i < 10; i++)
+            {
+                NamedPipeClientStream p = null;
+                try
+                {
+                    p = new NamedPipeClientStream(".", "discord-ipc-" + i, PipeDirection.InOut);
+                    p.Connect(300);
+                    pipe = p;
+                    Write(0, "{\"v\":1,\"client_id\":\"" + ClientId + "\"}");
+                    Read(); // READY
+                    sent = "\u0001"; // a new connection starts empty
+                    return true;
+                }
+                catch { if (p != null) try { p.Dispose(); } catch { } pipe = null; }
+            }
+            return false;
+        }
+        void SendActivity(string activityJson)
+        {
+            Write(1, "{\"cmd\":\"SET_ACTIVITY\",\"args\":{\"pid\":" + pid + ",\"activity\":" + (activityJson ?? "null") + "},\"nonce\":\"" + Guid.NewGuid().ToString("N") + "\"}");
+            Read();
+        }
+        void Write(int op, string payload)
+        {
+            byte[] body = Encoding.UTF8.GetBytes(payload);
+            byte[] frame = new byte[8 + body.Length];
+            BitConverter.GetBytes(op).CopyTo(frame, 0);
+            BitConverter.GetBytes(body.Length).CopyTo(frame, 4);
+            body.CopyTo(frame, 8);
+            pipe.Write(frame, 0, frame.Length);
+            pipe.Flush();
+        }
+        string Read()
+        {
+            byte[] head = ReadExact(8);
+            int len = BitConverter.ToInt32(head, 4);
+            if (len < 0 || len > (1 << 20)) throw new IOException("bad frame");
+            return Encoding.UTF8.GetString(ReadExact(len));
+        }
+        byte[] ReadExact(int n)
+        {
+            byte[] b = new byte[n]; int got = 0;
+            while (got < n) { int r = pipe.Read(b, got, n - got); if (r <= 0) throw new IOException("pipe closed"); got += r; }
+            return b;
+        }
+        void Close() { if (pipe != null) { try { pipe.Dispose(); } catch { } pipe = null; } }
     }
 
     // ------------------------------------------------------------------ window
