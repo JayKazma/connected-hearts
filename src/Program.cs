@@ -969,6 +969,7 @@ namespace ConnectedHearts
         // once the save is loaded.
         void HandleDiscordJoin()
         {
+            for (string note; (note = discord.TakeNote()) != null; ) Log(note);
             string secret = discord.TakeJoin();
             if (secret != null)
             {
@@ -1052,6 +1053,9 @@ namespace ConnectedHearts
         public void Set(string activityJson) { lock (sync) { want = activityJson; haveWant = true; } }
         // Join secrets Discord handed us (a friend pressed Join on our status, or we pressed it on theirs).
         public string TakeJoin() { lock (sync) return joins.Count > 0 ? joins.Dequeue() : null; }
+        // Discord's refusals (an ERROR reply), for the Activity log.
+        readonly Queue<string> notes = new Queue<string>();
+        public string TakeNote() { lock (sync) return notes.Count > 0 ? notes.Dequeue() : null; }
         // On exit: clear the status now (Discord also clears it when the pipe closes).
         public void Flush() { try { if (pipe != null && pipe.IsConnected) SendActivity(null); } catch { } Close(); }
 
@@ -1138,6 +1142,13 @@ namespace ConnectedHearts
                         d.TryGetValue("data", out data) && data is Dictionary<string, object> &&
                         ((Dictionary<string, object>)data).TryGetValue("secret", out secret) && secret is string)
                         lock (sync) joins.Enqueue((string)secret);
+                    else if (d != null && d.TryGetValue("evt", out evt) && (evt as string) == "ERROR")
+                    {
+                        object c2; d.TryGetValue("cmd", out c2);
+                        string msg = d.TryGetValue("data", out data) && data is Dictionary<string, object> && ((Dictionary<string, object>)data).ContainsKey("message")
+                            ? Convert.ToString(((Dictionary<string, object>)data)["message"]) : body;
+                        lock (sync) { if (notes.Count < 20) notes.Enqueue("Discord refused " + c2 + ": " + msg); }
+                    }
                 }
             }
             catch { }
