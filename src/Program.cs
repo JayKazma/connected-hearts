@@ -960,8 +960,9 @@ namespace ConnectedHearts
             { 0x0E, "9/92/Halloween_Town_KHII.png" }, { 0x0F, "8/80/GummiShip.png" }, { 0x10, "d/df/Port_Royal_KHII.png" },
             { 0x11, "5/5a/Space_Paranoids_KHII.png" }, { 0x12, "e/e6/The_World_That_Never_Was_KHII.png" },
         };
-        // "logo": the Connected Hearts crown, uploaded as a Rich Presence art asset in the Discord app.
-        const string ArtBase = "https://kh.wiki.gallery/images/", LogoAsset = "logo";
+        // "logo": the KHII logo, uploaded as a Rich Presence art asset in the Discord app. The title-screen
+        // picture stands in when no world is known (title screen, before the save loads).
+        const string ArtBase = "https://kh.wiki.gallery/images/", LogoAsset = "logo", TitleArt = "e/e2/Opening_Menu_HD_KHIIFM.png";
         static string Clip(string s, int max) { return s.Length <= max ? s : s.Substring(0, max - 1) + "\u2026"; }
         // Without a session the mod's own status file (status_<pid>.txt) gives this player's location and stats.
         void PollLocalStatus()
@@ -1011,8 +1012,13 @@ namespace ConnectedHearts
             int worldId = me != null && me.TryGetValue("worldId", out o) ? (int)o : WorldId;
             bool paused = me != null && me.TryGetValue("paused", out o) && (bool)o;
             int level = me != null && me.TryGetValue("level", out o) ? (int)o : 0;
-            string details = !string.IsNullOrEmpty(world) ? world + (string.IsNullOrEmpty(room) ? "" : " \u00b7 " + room) : "Kingdom Hearts II Final Mix";
-            string state = Mode == "local" ? "Solo test" : Connected ? "Co-op" : RuntimeAlive ? (Mode == "join" ? "Joining a friend" : "Waiting for a friend") : "Playing solo";
+            bool title = !SaveLoaded;
+            if (title) { world = ""; room = ""; worldId = -1; paused = false; level = 0; }
+            string details = title ? "Title screen" : !string.IsNullOrEmpty(world) ? world + (string.IsNullOrEmpty(room) ? "" : " \u00b7 " + room) : "Kingdom Hearts II Final Mix";
+            // The runtime is "connected" to its own session even while hosting alone; only the other player's
+            // stats in the [Party] line mean a friend is actually in.
+            bool together = Connected && PartyPeer != null;
+            string state = Mode == "local" ? "Solo test" : together ? "Co-op" : RuntimeAlive ? (Mode == "join" ? "Joining a friend" : "Waiting for a friend") : "Playing solo";
             if (level > 0) state += " \u00b7 Lv " + level;
             if (paused) state = "Paused \u00b7 " + state;
             string art;
@@ -1022,7 +1028,11 @@ namespace ConnectedHearts
                 assets["large_image"] = ArtBase + art; assets["large_text"] = Clip(world, 128);
                 assets["small_image"] = LogoAsset; assets["small_text"] = "Connected Hearts";
             }
-            else { assets["large_image"] = LogoAsset; assets["large_text"] = "Connected Hearts"; }
+            else
+            {
+                assets["large_image"] = ArtBase + TitleArt; assets["large_text"] = "Kingdom Hearts II Final Mix";
+                assets["small_image"] = LogoAsset; assets["small_text"] = "Connected Hearts";
+            }
             var activity = new Dictionary<string, object>
             {
                 { "details", Clip(details, 128) }, { "state", Clip(state, 128) },
@@ -1030,9 +1040,9 @@ namespace ConnectedHearts
             };
             // Hosting with a free seat: a Join button (the secret is this player's SteamID, which the joiner needs anyway).
             bool hosting = Mode == "host" && RuntimeAlive && Regex.IsMatch(MyId ?? "", @"^\d{17}$");
-            if (hosting || (Connected && Mode != "local"))
-                activity["party"] = new Dictionary<string, object> { { "id", "ch-" + (hosting ? MyId : sessionStart.ToString()) }, { "size", new[] { Connected ? 2 : 1, 2 } } };
-            if (hosting && !Connected)
+            if (hosting || (together && Mode != "local"))
+                activity["party"] = new Dictionary<string, object> { { "id", "ch-" + (hosting ? MyId : sessionStart.ToString()) }, { "size", new[] { together ? 2 : 1, 2 } } };
+            if (hosting && !together)
                 activity["secrets"] = new Dictionary<string, object> { { "join", "ch1:" + MyId } };
             discord.Set(json.Serialize(activity));
         }
