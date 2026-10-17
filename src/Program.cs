@@ -946,7 +946,8 @@ namespace ConnectedHearts
             { 0x0E, "9/92/Halloween_Town_KHII.png" }, { 0x10, "d/df/Port_Royal_KHII.png" },
             { 0x11, "5/5a/Space_Paranoids_KHII.png" }, { 0x12, "e/e6/The_World_That_Never_Was_KHII.png" },
         };
-        const string ArtBase = "https://kh.wiki.gallery/images/", GameLogo = ArtBase + "8/86/Kingdom_Hearts_II_Logo_KHII.png";
+        // "logo": the Connected Hearts crown, uploaded as a Rich Presence art asset in the Discord app.
+        const string ArtBase = "https://kh.wiki.gallery/images/", LogoAsset = "logo";
         static string Clip(string s, int max) { return s.Length <= max ? s : s.Substring(0, max - 1) + "\u2026"; }
         void UpdateDiscord()
         {
@@ -969,9 +970,9 @@ namespace ConnectedHearts
             if (worldId >= 0 && WorldArt.TryGetValue(worldId, out art))
             {
                 assets["large_image"] = ArtBase + art; assets["large_text"] = Clip(world, 128);
-                assets["small_image"] = GameLogo; assets["small_text"] = "Connected Hearts";
+                assets["small_image"] = LogoAsset; assets["small_text"] = "Connected Hearts";
             }
-            else { assets["large_image"] = GameLogo; assets["large_text"] = "Connected Hearts"; }
+            else { assets["large_image"] = LogoAsset; assets["large_text"] = "Connected Hearts"; }
             var activity = new Dictionary<string, object>
             {
                 { "details", Clip(details, 128) }, { "state", Clip(state, 128) },
