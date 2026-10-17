@@ -933,6 +933,7 @@ namespace ConnectedHearts
                 if (!GameAlive) { tiled = false; tileTries = 0; }
                 if (runtimeA != null && !Alive(runtimeA)) { runtimeA = null; Connected = false; Ping = null; Loss = null; Log("Co-op program exited."); if (Alive(runtimeB) || Alive(relay)) StopRuntime(); }
                 if (++coreTicks % 10 == 0) RemoveLoaderIfIdle();
+                PollLocalStatus();
                 UpdateDiscord();
                 if (GamePid != 0 && !GameAlive) { Log("KH2 closed."); GamePid = 0; MyId = ""; StopRuntime(); if (Game2Alive) { try { Process.GetProcessById(GamePid2).Kill(); } catch { } } GamePid2 = 0; }
                 else if (GamePid2 != 0 && !Game2Alive) { Log("Second KH2 closed."); GamePid2 = 0; StopRuntime(); }
@@ -956,6 +957,14 @@ namespace ConnectedHearts
         // "logo": the Connected Hearts crown, uploaded as a Rich Presence art asset in the Discord app.
         const string ArtBase = "https://kh.wiki.gallery/images/", LogoAsset = "logo";
         static string Clip(string s, int max) { return s.Length <= max ? s : s.Substring(0, max - 1) + "\u2026"; }
+        // Without a session the mod's own status file (status_<pid>.txt) gives this player's location and stats.
+        void PollLocalStatus()
+        {
+            if (!GameAlive) { if (!RuntimeAlive) PartyMe = null; return; }
+            if (RuntimeAlive) return; // the runtime's [Party] lines
+            string f = Path.Combine(Logs, "status_" + GamePid + ".txt");
+            try { if (File.Exists(f)) PartyMe = PartyStats(ReadShared(f)); } catch { }
+        }
         // A Join pressed in Discord: become the joiner of that host, start the game if needed, and connect
         // once the save is loaded.
         void HandleDiscordJoin()
