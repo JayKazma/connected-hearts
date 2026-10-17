@@ -937,7 +937,7 @@ namespace ConnectedHearts
         // ---- Discord status. World pictures are the KH wiki's KHII images, linked by URL (Discord fetches them).
         static readonly Dictionary<int, string> WorldArt = new Dictionary<int, string>
         {
-            { 0x02, "2/2d/Twilight_Town_Screen_Fade_KHII.png" }, { 0x03, "5/58/Destiny_Islands_KHII.png" },
+            { 0x02, "9/93/Twilight_Town_KHIII.png" }, { 0x03, "5/58/Destiny_Islands_KHII.png" },
             { 0x04, "b/b3/Hollow_Bastion_KHII.png" }, { 0x05, "0/06/Beast%27s_Castle_KHII.png" },
             { 0x06, "8/82/Olympus_Coliseum_KHII.png" }, { 0x07, "3/31/Agrabah_KHII.png" },
             { 0x08, "4/45/The_Land_of_Dragons_KHII.png" }, { 0x09, "6/66/100_Acre_Wood_KHII.png" },
