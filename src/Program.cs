@@ -103,7 +103,12 @@ namespace ConnectedHearts
             bool created;
             using (var mutex = new Mutex(true, "ConnectedHeartsLauncher", out created))
             {
-                if (!created) { MessageBox.Show("Connected Hearts is already open.", "Connected Hearts"); return 0; }
+                if (!created)
+                {
+                    // Discord's Join button starts us again: the open launcher gets the join over Discord's pipe.
+                    if (!args.Contains("--discord")) MessageBox.Show("Connected Hearts is already open.", "Connected Hearts");
+                    return 0;
+                }
                 Application.EnableVisualStyles();
                 Application.SetCompatibleTextRenderingDefault(false);
                 return Run(args);
@@ -158,6 +163,7 @@ namespace ConnectedHearts
         public bool DiscordStatus = true;  // show the session in Discord (settings.json "discordStatus")
         readonly DiscordPresence discord = new DiscordPresence();
         long sessionStart;                 // unix seconds when the current game started (Discord timer)
+        string pendingJoin;                // host SteamID from a Discord Join, joined once the save is loaded
 
         // state
         public int GamePid, GamePid2;
@@ -185,6 +191,7 @@ namespace ConnectedHearts
             if (string.IsNullOrEmpty(GameDir)) GameDir = FindGameDir();
             Log("Connected Hearts " + LocalVersion() + " ready.");
             if (string.IsNullOrEmpty(GameDir)) Log("Game folder not found automatically. Use Browse.");
+            if (DiscordStatus) { DiscordPresence.Register(Path.Combine(root, "ConnectedHearts.exe")); discord.Start(); }
         }
 
         // ---- helpers
@@ -949,11 +956,38 @@ namespace ConnectedHearts
         // "logo": the Connected Hearts crown, uploaded as a Rich Presence art asset in the Discord app.
         const string ArtBase = "https://kh.wiki.gallery/images/", LogoAsset = "logo";
         static string Clip(string s, int max) { return s.Length <= max ? s : s.Substring(0, max - 1) + "\u2026"; }
+        // A Join pressed in Discord: become the joiner of that host, start the game if needed, and connect
+        // once the save is loaded.
+        void HandleDiscordJoin()
+        {
+            string secret = discord.TakeJoin();
+            if (secret != null)
+            {
+                var m = Regex.Match(secret, @"^ch1:(\d{17})$");
+                if (!m.Success || m.Groups[1].Value == MyId) { Log("Discord join ignored (not a Connected Hearts host)."); }
+                else if (RuntimeAlive || Game2Alive) { Log("Discord join ignored: already in a session. Disconnect first."); }
+                else
+                {
+                    string host = m.Groups[1].Value;
+                    Mode = "join"; HostId = host; SaveSettings(); ResolveName(host);
+                    pendingJoin = host;
+                    Log("Discord: joining " + host + ". " + (GameAlive ? "Connecting once your save is loaded." : "Starting the game; load your save."));
+                    if (!GameAlive && !Launching) StartGame();
+                }
+            }
+            if (pendingJoin != null && GameAlive && SaveLoaded && MyId.Length > 0 && !RuntimeAlive)
+            {
+                string host = pendingJoin; pendingJoin = null;
+                StartRuntime(host);
+            }
+        }
         void UpdateDiscord()
         {
-            if (!DiscordStatus || !GameAlive) { sessionStart = 0; discord.Set(null); return; }
-            if (sessionStart == 0) sessionStart = (long)(DateTime.UtcNow - new DateTime(1970, 1, 1)).TotalSeconds;
+            if (!DiscordStatus) return;
             if (!discord.Started) discord.Start();
+            HandleDiscordJoin();
+            if (!GameAlive) { sessionStart = 0; discord.Set(null); return; }
+            if (sessionStart == 0) sessionStart = (long)(DateTime.UtcNow - new DateTime(1970, 1, 1)).TotalSeconds;
             var me = PartyMe;
             object o;
             string world = me != null && me.TryGetValue("world", out o) ? (string)o : World;
@@ -978,8 +1012,12 @@ namespace ConnectedHearts
                 { "details", Clip(details, 128) }, { "state", Clip(state, 128) },
                 { "timestamps", new Dictionary<string, object> { { "start", sessionStart } } }, { "assets", assets },
             };
-            if (Connected && Mode != "local")
-                activity["party"] = new Dictionary<string, object> { { "id", "ch-" + sessionStart }, { "size", new[] { 2, 2 } } };
+            // Hosting with a free seat: a Join button (the secret is this player's SteamID, which the joiner needs anyway).
+            bool hosting = Mode == "host" && RuntimeAlive && Regex.IsMatch(MyId ?? "", @"^\d{17}$");
+            if (hosting || (Connected && Mode != "local"))
+                activity["party"] = new Dictionary<string, object> { { "id", "ch-" + (hosting ? MyId : sessionStart.ToString()) }, { "size", new[] { Connected ? 2 : 1, 2 } } };
+            if (hosting && !Connected)
+                activity["secrets"] = new Dictionary<string, object> { { "join", "ch1:" + MyId } };
             discord.Set(json.Serialize(activity));
         }
     }
@@ -990,37 +1028,63 @@ namespace ConnectedHearts
     // missing or slow Discord never stalls the window; sends only changes, at most one every 5 s.
     class DiscordPresence
     {
-        const string ClientId = "1560828967324491876";
-        readonly object sync = new object();
+        public const string ClientId = "1560828967324491876";
+        readonly object sync = new object(), writeLock = new object();
+        readonly JavaScriptSerializer json = new JavaScriptSerializer();
         string want, sent = "\u0001";
         bool haveWant;
         DateTime lastSend = DateTime.MinValue, lastConnect = DateTime.MinValue;
         NamedPipeClientStream pipe;
         Thread thread;
         readonly int pid = Process.GetCurrentProcess().Id;
+        readonly Queue<string> joins = new Queue<string>();
         public bool Started { get { return thread != null; } }
         public void Start() { thread = new Thread(Run) { IsBackground = true, Name = "discord-status" }; thread.Start(); }
         public void Set(string activityJson) { lock (sync) { want = activityJson; haveWant = true; } }
+        // Join secrets Discord handed us (a friend pressed Join on our status, or we pressed it on theirs).
+        public string TakeJoin() { lock (sync) return joins.Count > 0 ? joins.Dequeue() : null; }
         // On exit: clear the status now (Discord also clears it when the pipe closes).
-        public void Flush() { try { lock (sync) { if (pipe != null && pipe.IsConnected && sent != null) SendActivity(null); } } catch { } Close(); }
+        public void Flush() { try { if (pipe != null && pipe.IsConnected) SendActivity(null); } catch { } Close(); }
+
+        // Discord starts "<exe> --discord" (protocol discord-<app id>) when its Join button is pressed and the
+        // launcher is not open; the join secret then arrives over the pipe. Per user, no admin rights.
+        public static void Register(string exe)
+        {
+            try
+            {
+                using (var key = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(@"Software\Classes\discord-" + ClientId))
+                {
+                    key.SetValue("", "URL:Run game " + ClientId + " protocol");
+                    key.SetValue("URL Protocol", "");
+                    using (var icon = key.CreateSubKey("DefaultIcon")) icon.SetValue("", exe);
+                    using (var cmd = key.CreateSubKey(@"shell\open\command")) cmd.SetValue("", "\"" + exe + "\" --discord");
+                }
+            }
+            catch { }
+        }
+
         void Run()
         {
             for (;;)
             {
                 try
                 {
-                    string w; bool has;
-                    lock (sync) { w = want; has = haveWant; }
-                    if (has && w != sent && (DateTime.UtcNow - lastSend).TotalSeconds >= 5 && Connect())
+                    if (Connect())
                     {
-                        lock (sync) SendActivity(w);
-                        sent = w; lastSend = DateTime.UtcNow;
+                        string w; bool has;
+                        lock (sync) { w = want; has = haveWant; }
+                        if (has && w != sent && (DateTime.UtcNow - lastSend).TotalSeconds >= 5)
+                        {
+                            SendActivity(w);
+                            sent = w; lastSend = DateTime.UtcNow;
+                        }
                     }
                 }
                 catch { Close(); }
                 Thread.Sleep(1000);
             }
         }
+        // Connected even with no game running: a Join pressed in Discord must reach the launcher.
         bool Connect()
         {
             if (pipe != null && pipe.IsConnected) return true;
@@ -1032,22 +1096,47 @@ namespace ConnectedHearts
                 NamedPipeClientStream p = null;
                 try
                 {
-                    p = new NamedPipeClientStream(".", "discord-ipc-" + i, PipeDirection.InOut);
+                    p = new NamedPipeClientStream(".", "discord-ipc-" + i, PipeDirection.InOut, PipeOptions.Asynchronous);
                     p.Connect(300);
                     pipe = p;
                     Write(0, "{\"v\":1,\"client_id\":\"" + ClientId + "\"}");
                     Read(); // READY
                     sent = "\u0001"; // a new connection starts empty
+                    Write(1, "{\"cmd\":\"SUBSCRIBE\",\"evt\":\"ACTIVITY_JOIN\",\"nonce\":\"" + Guid.NewGuid().ToString("N") + "\"}");
+                    var reader = new Thread(ReadLoop) { IsBackground = true, Name = "discord-events" };
+                    reader.Start(p);
                     return true;
                 }
                 catch { if (p != null) try { p.Dispose(); } catch { } pipe = null; }
             }
             return false;
         }
+        // Everything Discord sends after READY: replies, pings, and the ACTIVITY_JOIN event.
+        void ReadLoop(object state)
+        {
+            var p = (NamedPipeClientStream)state;
+            try
+            {
+                for (;;)
+                {
+                    int op; string body = Read(p, out op);
+                    if (op == 2) break;                       // close
+                    if (op == 3) { Write(4, body); continue; } // ping -> pong
+                    var d = json.Deserialize<Dictionary<string, object>>(body);
+                    object cmd, evt, data, secret;
+                    if (d != null && d.TryGetValue("cmd", out cmd) && (cmd as string) == "DISPATCH" &&
+                        d.TryGetValue("evt", out evt) && (evt as string) == "ACTIVITY_JOIN" &&
+                        d.TryGetValue("data", out data) && data is Dictionary<string, object> &&
+                        ((Dictionary<string, object>)data).TryGetValue("secret", out secret) && secret is string)
+                        lock (sync) joins.Enqueue((string)secret);
+                }
+            }
+            catch { }
+            if (pipe == p) Close();
+        }
         void SendActivity(string activityJson)
         {
             Write(1, "{\"cmd\":\"SET_ACTIVITY\",\"args\":{\"pid\":" + pid + ",\"activity\":" + (activityJson ?? "null") + "},\"nonce\":\"" + Guid.NewGuid().ToString("N") + "\"}");
-            Read();
         }
         void Write(int op, string payload)
         {
@@ -1056,23 +1145,24 @@ namespace ConnectedHearts
             BitConverter.GetBytes(op).CopyTo(frame, 0);
             BitConverter.GetBytes(body.Length).CopyTo(frame, 4);
             body.CopyTo(frame, 8);
-            pipe.Write(frame, 0, frame.Length);
-            pipe.Flush();
+            lock (writeLock) { pipe.Write(frame, 0, frame.Length); pipe.Flush(); }
         }
-        string Read()
+        string Read() { int op; return Read(pipe, out op); }
+        static string Read(Stream s, out int op)
         {
-            byte[] head = ReadExact(8);
+            byte[] head = ReadExact(s, 8);
+            op = BitConverter.ToInt32(head, 0);
             int len = BitConverter.ToInt32(head, 4);
             if (len < 0 || len > (1 << 20)) throw new IOException("bad frame");
-            return Encoding.UTF8.GetString(ReadExact(len));
+            return Encoding.UTF8.GetString(ReadExact(s, len));
         }
-        byte[] ReadExact(int n)
+        static byte[] ReadExact(Stream s, int n)
         {
             byte[] b = new byte[n]; int got = 0;
-            while (got < n) { int r = pipe.Read(b, got, n - got); if (r <= 0) throw new IOException("pipe closed"); got += r; }
+            while (got < n) { int r = s.Read(b, got, n - got); if (r <= 0) throw new IOException("pipe closed"); got += r; }
             return b;
         }
-        void Close() { if (pipe != null) { try { pipe.Dispose(); } catch { } pipe = null; } }
+        void Close() { var p = pipe; pipe = null; if (p != null) { try { p.Dispose(); } catch { } } }
     }
 
     // ------------------------------------------------------------------ window
