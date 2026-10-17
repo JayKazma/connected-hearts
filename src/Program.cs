@@ -943,7 +943,7 @@ namespace ConnectedHearts
             { 0x08, "4/45/The_Land_of_Dragons_KHII.png" }, { 0x09, "6/66/100_Acre_Wood_KHII.png" },
             { 0x0A, "2/24/Pride_Lands_KHII.png" }, { 0x0B, "c/c8/Atlantica_KHII.png" },
             { 0x0C, "b/bd/Disney_Castle_KHII.png" }, { 0x0D, "a/a0/Timeless_River_KHII.png" },
-            { 0x0E, "9/92/Halloween_Town_KHII.png" }, { 0x10, "d/df/Port_Royal_KHII.png" },
+            { 0x0E, "9/92/Halloween_Town_KHII.png" }, { 0x0F, "8/80/GummiShip.png" }, { 0x10, "d/df/Port_Royal_KHII.png" },
             { 0x11, "5/5a/Space_Paranoids_KHII.png" }, { 0x12, "e/e6/The_World_That_Never_Was_KHII.png" },
         };
         // "logo": the Connected Hearts crown, uploaded as a Rich Presence art asset in the Discord app.
