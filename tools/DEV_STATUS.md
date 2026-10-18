@@ -36,6 +36,6 @@ Read this first in a new chat. Updated with every dev build.
    are made by her own AI on each game, so she stays uncopied. Struggle gauges (Lexaeus power) and reaction
    commands on Game 2 are still per game.
 2. A multi-part boss is untested; enemy projectiles and rejoin mid-fight are untested.
-4. Drive Forms in co-op; Sora 2 shows the friend's keyblade; keyblade swap only visible to the switcher.
-5. Test tab: bring together, freeze, items, debug view, auto tests; quick spots for Larxene/Lexaeus.
-6. Release 0.1.4 (go-ahead needed); website with the installer link; trim debug logs.
+3. Drive Forms in co-op; Sora 2 shows the friend's keyblade; keyblade swap only visible to the switcher.
+4. Test tab: bring together, freeze, items, debug view, auto tests.
+5. Release 0.1.4 (go-ahead needed); website with the installer link; trim debug logs.
