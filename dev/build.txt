@@ -1,2 +1,2 @@
-20261018.12
-Copy the host's boss now includes Axel I (candidate).
+20261018.13
+Test tab quick spots for Twilight Thorn and Axel I.
