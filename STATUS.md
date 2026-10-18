@@ -37,7 +37,11 @@ Read this first in a new chat. Updated with every dev build.
 
 ## Open
 1. Boss copying (Test switch "Copy the host's boss", KH2COOP_MIRROR_BOSSES=1): boss by boss, list in
-   inject/src/EnemyMirrorPose.hpp kMirroredBosses. Lexaeus done (position, motion, hits, HP). Larxene's duplicates
+   inject/src/EnemyMirrorPose.hpp kMirroredBosses. Lexaeus done (position, motion, hits, HP). Twilight Thorn
+   (candidate, 20261018.9): position, motion, hits, HP and defeat match; while a boss holds the local player
+   (player+0x2B0 = the boss, a grab) the friend's own AI keeps it until it lets go, then the copy resumes. Not yet
+   seen: Key Counter/Reversal on the friend's game during those grabs. When the host lands the last hit, the friend
+   reached the after-fight cutscene about 15 s later. Larxene's duplicates
    are made by her own AI on each game, so she stays uncopied. Struggle gauges (Lexaeus power) and reaction
    commands on Game 2 are still per game.
 2. A multi-part boss is untested; enemy projectiles and rejoin mid-fight are untested.

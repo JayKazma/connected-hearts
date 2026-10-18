@@ -1,2 +1,2 @@
-20261018.9
-Copied bosses let go of a grabbed player (Twilight Thorn's opening grab).
+20261018.10
+Boss defeat reaches the friend at the hit (was about 10 s late).
