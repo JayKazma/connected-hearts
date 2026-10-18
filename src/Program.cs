@@ -161,6 +161,12 @@ namespace ConnectedHearts
         public bool TileBorderless = true; // solo test: the two game windows meet edge to edge (settings.json "tileBorderless")
         public bool CastReplay = true;     // replay the other player's magic/items on their clone (settings.json "castReplay")
         public bool DiscordStatus = true;  // show the session in Discord (settings.json "discordStatus")
+        // Developer Test tab: shown only when bin\chtest.exe is present (never in the release package).
+        public readonly string TestTool;
+        public bool TestKit { get { return File.Exists(TestTool); } }
+        public bool SaveLock = true, TestGod, TestMp; // settings.json "saveLock", "testGod", "testMp"
+        readonly string testDir;
+        int testBusy; DateTime reconnectAt = DateTime.MinValue;
         readonly DiscordPresence discord = new DiscordPresence();
         long sessionStart;                 // unix seconds when the current game started (Discord timer)
         string pendingJoin;                // host SteamID from a Discord Join, joined once the save is loaded
@@ -184,6 +190,7 @@ namespace ConnectedHearts
             Root = root; Bin = Path.Combine(root, "bin");
             Loader = Path.Combine(Bin, "winmm.dll"); Runtime = Path.Combine(Bin, "connected_hearts_runtime.exe");
             Dll = Path.Combine(Bin, "connected_hearts.dll"); Relay = Path.Combine(Bin, "connected_hearts_relay.exe");
+            TestTool = Path.Combine(Bin, "chtest.exe"); testDir = Path.Combine(root, @"build\test");
             Logs = Path.Combine(root, @"build\rig\logs"); SettingsFile = Path.Combine(root, "settings.json"); VersionFile = Path.Combine(root, "version.txt");
             ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
             LoadSettings();
@@ -197,7 +204,13 @@ namespace ConnectedHearts
         // ---- helpers
         public void Log(string text)
         {
-            lock (gate) { lines.Add(DateTime.Now.ToString("HH:mm:ss") + "  " + text); if (lines.Count > 300) lines.RemoveRange(0, lines.Count - 300); }
+            string line = DateTime.Now.ToString("HH:mm:ss") + "  " + text;
+            lock (gate)
+            {
+                lines.Add(line); if (lines.Count > 300) lines.RemoveRange(0, lines.Count - 300);
+                // The Test tab's activity, readable from outside the launcher (remote testing).
+                if (testDir != null && TestKit) { try { Directory.CreateDirectory(testDir); File.AppendAllText(Path.Combine(testDir, "activity.log"), DateTime.Now.ToString("yyyy-MM-dd ") + line + "\r\n"); } catch { } }
+            }
         }
         public string LocalVersion() { try { return File.Exists(VersionFile) ? File.ReadAllText(VersionFile).Trim() : "0"; } catch { return "0"; } }
         static bool Alive(int pid) { if (pid == 0) return false; try { var p = Process.GetProcessById(pid); return !p.HasExited; } catch { return false; } }
@@ -226,6 +239,9 @@ namespace ConnectedHearts
                 if (d.TryGetValue("tileBorderless", out v) && v is bool) TileBorderless = (bool)v;
                 if (d.TryGetValue("castReplay", out v) && v is bool) CastReplay = (bool)v;
                 if (d.TryGetValue("discordStatus", out v) && v is bool) DiscordStatus = (bool)v;
+                if (d.TryGetValue("saveLock", out v) && v is bool) SaveLock = (bool)v;
+                if (d.TryGetValue("testGod", out v) && v is bool) TestGod = (bool)v;
+                if (d.TryGetValue("testMp", out v) && v is bool) TestMp = (bool)v;
                 if (d.TryGetValue("mode", out v) && v != null) Mode = v.ToString();
                 if (d.TryGetValue("hostId", out v) && v != null) HostId = v.ToString();
                 if (d.TryGetValue("friendId", out v) && v != null) FriendId = v.ToString();
@@ -246,6 +262,7 @@ namespace ConnectedHearts
             {
                 var d = new Dictionary<string, object> { { "gameDir", GameDir }, { "tileBorderless", TileBorderless }, { "castReplay", CastReplay }, { "discordStatus", DiscordStatus }, { "mode", Mode }, { "hostId", HostId }, { "friendId", FriendId }, { "recent", Recent }, { "names", Names } };
                 if (DevEnv.Count > 0) d["devEnv"] = DevEnv;
+                if (TestKit) { d["saveLock"] = SaveLock; d["testGod"] = TestGod; d["testMp"] = TestMp; }
                 File.WriteAllText(SettingsFile, json.Serialize(d), Encoding.UTF8);
             }
             catch { }
@@ -282,6 +299,13 @@ namespace ConnectedHearts
                 { "native", true }, { "saveLoaded", SaveLoaded }, { "lines", l }, { "recent", new List<string>(Recent) }, { "names", NamesSnapshot() },
                 { "world", World }, { "room", Room }, { "tiled", tiled }, { "partyMe", PartyMe }, { "partyPeer", PartyPeer }
             };
+            if (TestKit)
+            {
+                var sw = new Dictionary<string, object>();
+                foreach (var t in TestSwitches) sw[t.Id] = SwitchOn(t);
+                sw["saveLock"] = SaveLock;
+                d["test"] = new Dictionary<string, object> { { "switches", sw }, { "god", TestGod }, { "mp", TestMp }, { "busy", testBusy > 0 } };
+            }
             return json.Serialize(d);
         }
 
@@ -467,6 +491,13 @@ namespace ConnectedHearts
             // Sora 2 also joins rooms that have no friend seat (the prologue); enemies follow the host (phase 1 list).
             env["KH2COOP_FORCED_SEAT"] = "1"; env["KH2COOP_ENEMY_MIRROR"] = "1"; env["KH2COOP_SPAWN_PICK"] = "1";
             foreach (var kv in DevEnv) env[kv.Key] = kv.Value;
+            bool saveLock = TestKit && SaveLock;
+            if (TestKit)
+            {
+                env["KH2COOP_TEST_KIT"] = "1";
+                string ds; if (DevEnv.TryGetValue("KH2COOP_DOWNED_SPIKE", out ds) && ds == "1") env["KH2COOP_DOWNED_SPIKE_FIXTURE"] = "1"; // Knock out / Revive now
+                if (saveLock) Log("Save lock is on: in-game saves are not kept this session.");
+            }
             if (DevEnv.Count > 0) Log("Test switches: " + string.Join(", ", DevEnv.Select(kv => kv.Key + "=" + kv.Value)));
             int count = local ? 2 : 1;
             if (!InstallLoader(dir)) return;
@@ -481,7 +512,7 @@ namespace ConnectedHearts
                     // Saves are real. In the solo test both windows share one Steam save folder, so only
                     // window 1 (the host) writes it; window 2's saves go to a throwaway copy.
                     var envI = new Dictionary<string, string>(env);
-                    if (i == 0) envI["KH2COOP_SAVEGUARD"] = "0";
+                    if (i == 0 && !saveLock) envI["KH2COOP_SAVEGUARD"] = "0";
                     all.Add(LaunchOne(dir, envI));
                     if (i < count - 1) Thread.Sleep(3000);
                 }
@@ -598,6 +629,7 @@ namespace ConnectedHearts
             }
             if (pids.Count == 0) { Problem = "Launch failed"; Log("Launch failed: " + string.Join(" ", t.Result)); return; }
             GamePid = pids[0]; MyId = "";
+            if (TestKit) RegisterOwned(pids);
             if (Mode == "local")
             {
                 if (pids.Count < 2) { Problem = "Second game failed"; Log("Second KH2 did not start: " + string.Join(" ", t.Result)); return; }
@@ -618,7 +650,7 @@ namespace ConnectedHearts
             bool before = SaveLoaded;
             if (GamePid != 0 && fieldPid != GamePid && loaded(GamePid)) fieldPid = GamePid;
             if (GamePid2 != 0 && fieldPid2 != GamePid2 && loaded(GamePid2)) fieldPid2 = GamePid2;
-            if (!before && SaveLoaded) Log(Mode == "local" ? "Both saves loaded. Press Connect both." : "Save loaded. You can connect now.");
+            if (!before && SaveLoaded) { Log(Mode == "local" ? "Both saves loaded. Press Connect both." : "Save loaded. You can connect now."); if (TestKit && (TestGod || TestMp)) ApplyTestFlags(); }
         }
         void PollSteamId()
         {
@@ -888,6 +920,170 @@ namespace ConnectedHearts
                 case "tile": if (GameAlive && Game2Alive) { int t = Native.Tile(GamePid, GamePid2, TileBorderless); tileTries = 0; if (t == 0) Log("Could not find both game windows yet; try again in a moment."); else { tiled = true; Log(t == 1 ? "Game windows tiled side by side." : "Game windows are already tiled. If a game stays fullscreen, set it to Windowed in its Config menu."); } } break;
                 case "collectLogs": CollectLogs(); break;
                 case "forgetRecent": { string id = str("peerId") ?? ""; Recent.Remove(id); SaveSettings(); break; }
+                case "test": if (TestKit) HandleTest(c); break;
+            }
+        }
+
+        // ---- Test tab (developer only; needs bin\chtest.exe)
+        class TestSwitch { public string Id; public string[] Env; public string On; }
+        // Off removes the variables (the mod's default). Env[0] decides whether it reads as on.
+        static readonly TestSwitch[] TestSwitches =
+        {
+            new TestSwitch { Id = "mirrorAll", Env = new[] { "KH2COOP_ENEMY_MIRROR_ALL" }, On = "1" },
+            new TestSwitch { Id = "targetBoth", Env = new[] { "KH2COOP_ENEMY_TARGET_REMOTE" }, On = "1" },
+            new TestSwitch { Id = "fixEnemies", Env = new[] { "KH2COOP_ENEMY_POPULATION", "KH2COOP_ENEMY_POPULATION_SPAWN" }, On = "1" },
+            new TestSwitch { Id = "ballOff", Env = new[] { "KH2COOP_BALL_SYNC" }, On = "0" },
+            new TestSwitch { Id = "keepParty", Env = new[] { "KH2COOP_NO_COMPANION" }, On = "0" },
+            new TestSwitch { Id = "downed", Env = new[] { "KH2COOP_DOWNED_SPIKE" }, On = "1" },
+            new TestSwitch { Id = "revivePrompt", Env = new[] { "KH2COOP_REVIVE_PROMPT" }, On = "1" },
+            new TestSwitch { Id = "spectate", Env = new[] { "KH2COOP_DOWNED_SPECTATE" }, On = "1" },
+        };
+        bool SwitchOn(TestSwitch t) { string v; return DevEnv.TryGetValue(t.Env[0], out v) && v == t.On; }
+
+        // chtest's poke/watch/capture need the games registered as rig-owned (pid + creation time).
+        void RegisterOwned(List<int> pids)
+        {
+            try
+            {
+                var sb = new StringBuilder();
+                foreach (var pid in pids) { try { sb.Append(pid).Append(' ').Append(Process.GetProcessById(pid).StartTime.ToFileTime()).Append('\n'); } catch { } }
+                string dir = Path.Combine(Root, @"build\rig"); Directory.CreateDirectory(dir);
+                File.WriteAllText(Path.Combine(dir, "owned.txt"), sb.ToString(), Encoding.ASCII);
+            }
+            catch (Exception ex) { Log("Test: could not register the games: " + ex.Message); }
+        }
+
+        List<int> TestTargets(string target)
+        {
+            var l = new List<int>();
+            if (target != "2" && GameAlive) l.Add(GamePid);
+            if (target != "1" && Game2Alive) l.Add(GamePid2);
+            return l;
+        }
+        string GameLabel(int pid) { return Mode == "local" ? (pid == GamePid ? "Game 1" : "Game 2") : "Game"; }
+
+        // Runs chtest once per game in the background and logs each answer.
+        void RunTest(string label, List<int> pids, Func<int, string> args)
+        {
+            if (pids.Count == 0) { Log("Test: no game running."); return; }
+            foreach (var pid in pids)
+            {
+                int p = pid; string a = args(p);
+                if (a == null) continue;
+                Interlocked.Increment(ref testBusy);
+                Task.Factory.StartNew(() =>
+                {
+                    try
+                    {
+                        string outText = string.Join(" ", RunCapture(TestTool, a + " --pid " + p, null));
+                        var m = Regex.Match(outText, "\"error\":\"((?:[^\"\\\\]|\\\\.)*)\"");
+                        bool ok = outText.Contains("\"ok\":true");
+                        var path = Regex.Match(outText, "\"path\":\"((?:[^\"\\\\]|\\\\.)*)\"");
+                        Log("Test: " + label + " on " + GameLabel(p) + (ok ? ": done" + (path.Success ? " (" + Path.GetFileName(path.Groups[1].Value.Replace("\\\\", "\\")) + ")" : "") : ": " + (m.Success ? m.Groups[1].Value : "failed")));
+                    }
+                    catch (Exception ex) { Log("Test: " + label + " failed: " + ex.Message); }
+                    finally { Interlocked.Decrement(ref testBusy); }
+                });
+            }
+        }
+
+        void ApplyTestFlags()
+        {
+            RunTest(TestGod ? "God mode on" : "God mode off", TestTargets("both"), p => "test god " + (TestGod ? "on" : "off"));
+            RunTest(TestMp ? "Infinite MP on" : "Infinite MP off", TestTargets("both"), p => "test mp " + (TestMp ? "on" : "off"));
+        }
+
+        static int? Num(string s)
+        {
+            if (string.IsNullOrEmpty(s)) return null; s = s.Trim();
+            int v;
+            if (s.StartsWith("0x", StringComparison.OrdinalIgnoreCase) ? int.TryParse(s.Substring(2), System.Globalization.NumberStyles.HexNumber, null, out v) : int.TryParse(s, out v)) return v;
+            return null;
+        }
+        // The room a game is in, from its status file ("... world=W room=R ...").
+        int[] RoomOf(int pid)
+        {
+            try
+            {
+                var m = Regex.Match(ReadShared(Path.Combine(Logs, "status_" + pid + ".txt")), @"world=(\d+) room=(\d+)");
+                if (m.Success) return new[] { int.Parse(m.Groups[1].Value), int.Parse(m.Groups[2].Value) };
+            }
+            catch { }
+            return null;
+        }
+
+        void HandleTest(Dictionary<string, object> c)
+        {
+            object v;
+            Func<string, string> str = k => c.TryGetValue(k, out v) && v != null ? v.ToString() : null;
+            Func<string, bool> flag = k => c.TryGetValue(k, out v) && v is bool && (bool)v;
+            string action = str("action") ?? "", target = str("target") ?? "both";
+            var pids = TestTargets(target);
+            switch (action)
+            {
+                case "warp":
+                {
+                    int? w = Num(str("world")), r = Num(str("room")), b = Num(str("btl")), e = Num(str("evt"));
+                    if (w == null || r == null) { Log("Test: warp needs a world and a room."); return; }
+                    string extra = (b != null ? " --btl " + b : "") + (e != null ? " --evt " + e : "");
+                    RunTest("Warp to " + w.Value.ToString("X2") + "/" + r.Value.ToString("X2") + extra, pids, p => "warp --world " + w + " --room " + r + extra + " --timeout-ms 20000");
+                    break;
+                }
+                case "restartRoom":
+                    RunTest("Restart room", pids, p => { var wr = RoomOf(p); if (wr == null) { Log("Test: " + GameLabel(p) + " has no room yet."); return null; } return "warp --world " + wr[0] + " --room " + wr[1] + " --timeout-ms 20000"; });
+                    break;
+                case "god": TestGod = flag("value"); SaveSettings(); RunTest(TestGod ? "God mode on" : "God mode off", TestTargets("both"), p => "test god " + (TestGod ? "on" : "off")); break;
+                case "mp": TestMp = flag("value"); SaveSettings(); RunTest(TestMp ? "Infinite MP on" : "Infinite MP off", TestTargets("both"), p => "test mp " + (TestMp ? "on" : "off")); break;
+                case "refill": RunTest("Refill HP and MP", pids, p => "test refill"); break;
+                case "knockout": RunTest("Knock out", pids, p => "test knockout"); break;
+                case "revive": RunTest("Revive now", pids, p => "test revive"); break;
+                case "screenshot": RunTest("Screenshot", pids, p => "capture"); break;
+                case "mark":
+                {
+                    string text = Regex.Replace(str("text") ?? "", "[^A-Za-z0-9 .,:/#()+-]", "").Trim();
+                    if (text.Length == 0) text = "mark"; if (text.Length > 80) text = text.Substring(0, 80);
+                    Log("Mark: " + text);
+                    RunTest("Mark", TestTargets("both"), p => "test mark " + text);
+                    break;
+                }
+                case "reconnect":
+                    if (!RuntimeAlive && !Connected) { Log("Test: not connected."); return; }
+                    StopRuntime(); reconnectAt = DateTime.Now.AddSeconds(Math.Max(1, Math.Min(30, Num(str("seconds")) ?? 3)));
+                    Log("Test: dropped the connection; reconnecting in a moment.");
+                    break;
+                case "switch":
+                {
+                    string id = str("id") ?? ""; bool on = flag("value");
+                    if (id == "saveLock") { SaveLock = on; SaveSettings(); Log("Test: save lock " + (on ? "on" : "off") + " (next start)."); return; }
+                    var t = TestSwitches.FirstOrDefault(x => x.Id == id);
+                    if (t == null) return;
+                    foreach (var key in t.Env) { if (on) DevEnv[key] = t.On; else DevEnv.Remove(key); }
+                    SaveSettings();
+                    Log("Test: switch " + id + " " + (on ? "on" : "off") + (GameAlive ? " (applies the next time the games start)" : "") + ".");
+                    break;
+                }
+            }
+        }
+
+        // Remote testing: JSON commands dropped in build\test\inbox run like the page's, oldest first.
+        void PollTestInbox()
+        {
+            string inbox = Path.Combine(testDir, "inbox");
+            if (!Directory.Exists(inbox)) return;
+            foreach (var f in new DirectoryInfo(inbox).GetFiles("*.json").OrderBy(x => x.Name).Take(4))
+            {
+                string text = null;
+                try { text = File.ReadAllText(f.FullName); File.Delete(f.FullName); } catch { continue; }
+                try
+                {
+                    var d = json.Deserialize<Dictionary<string, object>>(text);
+                    if (d == null) continue;
+                    object cv; string name = d.TryGetValue("cmd", out cv) && cv != null ? cv.ToString() : "";
+                    if (name == "browse" || name == "closeUi") continue;
+                    Log("Remote: " + name + (d.ContainsKey("action") ? " " + d["action"] : ""));
+                    Handle(d, null);
+                }
+                catch (Exception ex) { Log("Remote command failed: " + ex.Message); }
             }
         }
 
@@ -933,6 +1129,7 @@ namespace ConnectedHearts
                 if (launchTask != null && launchTask.IsCompleted) { var t = launchTask; launchTask = null; CompleteStartGame(t); }
                 PollSteamId();
                 PollField();
+                if (TestKit) { PollTestInbox(); if (reconnectAt != DateTime.MinValue && DateTime.Now >= reconnectAt) { reconnectAt = DateTime.MinValue; if (!RuntimeAlive) StartRuntime(Mode == "join" ? HostId : FriendId); } }
                 // Keep the two windows side by side for the first ~3 minutes: KH2 re-applies its own display mode
                 // after its splash and again after the first load, which undoes a single early tile.
                 if (Mode == "local" && GameAlive && Game2Alive && tileTries < 500) { tileTries++; int t = Native.Tile(GamePid, GamePid2, TileBorderless); if (t == 1 && !tiled) { tiled = true; Log("Game windows tiled side by side."); } }

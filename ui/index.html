@@ -165,6 +165,33 @@ img.av { object-fit: cover; }
 .offline { position: absolute; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 6px; background: rgba(16,16,18,.9); font-size: 18px; font-weight: 800; }
 .offline small { font-size: 12px; font-weight: 500; color: var(--muted); }
 .offline.show { display: flex; }
+
+/* test tab (developer only) */
+.tp { position: absolute; left: 20px; right: 20px; top: 64px; bottom: 44px; padding: 16px 18px; border-radius: 18px; background: rgba(16,16,18,.985); border: 1px solid rgba(242,193,78,.35); display: none; flex-direction: column; gap: 14px; z-index: 4; }
+.tp.open { display: flex; }
+.tp .top { display: flex; align-items: center; gap: 12px; }
+.tnav { display: flex; gap: 4px; padding: 4px; border-radius: 10px; background: var(--well); }
+.tnav button { height: 26px; padding: 0 12px; border-radius: 7px; border: 0; background: transparent; color: var(--text2); font-size: 12px; font-weight: 600; }
+.tnav button.on { background: rgba(255,247,236,.1); color: var(--text); font-weight: 700; }
+.tp .seg { width: 300px; } .tp .seg button { height: 26px; }
+.tp .seg button:disabled { color: var(--dim); }
+.tpage { flex: 1; min-height: 0; display: none; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.tpage.on { display: grid; }
+.tbox { display: flex; flex-direction: column; gap: 2px; padding: 4px 6px; border-radius: 12px; background: rgba(8,8,10,.5); border: 1px solid rgba(255,247,236,.12); }
+.tsw { display: flex; align-items: center; gap: 10px; min-height: 38px; padding: 0 6px; font-size: 12.5px; font-weight: 600; cursor: pointer; }
+.tsw input { width: 16px; height: 16px; accent-color: var(--gold); flex: none; }
+.tsw span { display: flex; flex-direction: column; min-width: 0; } .tsw small { font-size: 10.5px; color: var(--muted); font-weight: 500; }
+.tspot { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 30px; padding: 0 8px; border-radius: 8px; cursor: pointer; font-size: 12.5px; font-weight: 600; }
+.tspot:hover { background: rgba(255,247,236,.08); } .tspot.on { background: rgba(242,193,78,.14); }
+.tspot .m { font: 400 10.5px 'JetBrains Mono', Consolas, monospace; color: var(--muted); }
+.tsel, .tin { height: 32px; min-width: 0; padding: 0 8px; border-radius: 10px; border: 1px solid var(--line2); background: var(--well); color: var(--text); font: 600 12px 'Outfit', sans-serif; outline: none; }
+.tin { font: 500 11.5px 'JetBrains Mono', Consolas, monospace; }
+.tin:focus, .tsel:focus { border-color: rgba(242,193,78,.6); }
+.tbtn { flex: 1; height: 32px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--line2); background: transparent; color: var(--text); font-size: 12px; font-weight: 600; white-space: nowrap; }
+.tbtn.hot { background: var(--gold); border-color: var(--gold); color: var(--ink); font-weight: 700; }
+.tbtn:disabled { color: var(--dim); border-color: rgba(255,247,236,.1); }
+.tbtn.hot:disabled { background: rgba(242,193,78,.35); color: rgba(20,16,24,.7); }
+.tnote { display: flex; align-items: center; min-height: 32px; padding: 6px 12px; border-radius: 10px; background: rgba(8,8,10,.4); border: 1px dashed rgba(255,247,236,.2); font-size: 11.5px; color: var(--text2); }
 </style>
 </head>
 <body>
@@ -177,6 +204,7 @@ img.av { object-fit: cover; }
     <span class="ver" id="ver">v—</span>
     <span class="chip" id="chipState"><i></i><span id="chipStateText">Not running</span></span>
     <div class="sp"></div>
+    <button class="hbtn hide" id="btnTest">Test</button>
     <button class="hbtn hide" id="btnTile">Tile windows</button>
     <button class="hbtn" id="btnUpdate">Check for updates</button>
     <button class="ibtn" id="btnMin" aria-label="Minimize" title="Minimize"><svg viewBox="0 0 12 12"><path d="M1.5 6h9"/></svg></button>
@@ -251,6 +279,70 @@ img.av { object-fit: cover; }
     <a id="btnCollect2">Collect logs</a>
   </div>
 
+  <div class="tp" id="testPanel">
+    <div class="top">
+      <span class="k">Test tools</span>
+      <nav class="tnav" aria-label="Test sections"><button class="on" data-page="tpFights">Fights</button><button data-page="tpCoop">Co-op</button></nav>
+      <div class="sp"></div>
+      <div class="seg" id="tTarget"><button class="on" data-t="both">Both games</button><button data-t="1">Game 1</button><button data-t="2">Game 2</button></div>
+      <button class="ibtn" id="btnTestClose" aria-label="Close test tools" style="width:28px;height:28px;border:1px solid var(--line2)"><svg viewBox="0 0 12 12"><path d="M2 2l8 8M10 2l-8 8"/></svg></button>
+    </div>
+
+    <div class="tpage on" id="tpFights">
+      <div class="col">
+        <div class="k">Warp</div>
+        <div class="tbox" id="tSpots"></div>
+        <div class="row"><select class="tsel" id="tWorld" style="flex:1" aria-label="World"></select><input class="tin" id="tRoom" style="width:56px" placeholder="Room" aria-label="Room (hex)"><input class="tin" id="tBtl" style="width:52px" placeholder="Btl" aria-label="Battle program"><input class="tin" id="tEvt" style="width:52px" placeholder="Evt" aria-label="Event program"></div>
+        <div class="row"><button class="tbtn hot" data-run="warp">Warp</button><button class="tbtn" data-run="restartRoom">Restart room</button></div>
+      </div>
+      <div class="col">
+        <div class="k">Player</div>
+        <div class="tbox">
+          <label class="tsw"><input type="checkbox" id="tGod"><span>God mode<small>HP stays full</small></span></label>
+          <label class="tsw"><input type="checkbox" id="tMp"><span>Infinite MP<small>MP stays full</small></span></label>
+        </div>
+        <div class="row"><button class="tbtn" data-run="refill">Refill HP and MP</button><button class="tbtn" data-run="screenshot">Screenshot</button></div>
+        <div class="k" style="margin-top:4px">Mark in log</div>
+        <div class="row"><input class="tin" id="tMark" style="flex:1" maxlength="80" placeholder="What you are about to test"><button class="tbtn" style="flex:none" data-run="mark">Mark</button></div>
+      </div>
+      <div class="col">
+        <div class="k">Test switches</div>
+        <div class="tbox">
+          <label class="tsw"><input type="checkbox" data-sw="mirrorAll"><span>Copy all regular enemies<small>not only the tested families</small></span></label>
+          <label class="tsw"><input type="checkbox" data-sw="targetBoth"><span>Enemies target both players<small>Sora 2 can be attacked too</small></span></label>
+          <label class="tsw"><input type="checkbox" data-sw="fixEnemies"><span>Fix extra or missing enemies<small>removes or spawns to match the host</small></span></label>
+          <label class="tsw"><input type="checkbox" data-sw="ballOff"><span>Turn off the shared ball</span></label>
+          <label class="tsw"><input type="checkbox" data-sw="keepParty"><span>Keep Donald and Goofy</span></label>
+          <label class="tsw"><input type="checkbox" data-sw="saveLock"><span>Save lock<small>in-game saves are not kept</small></span></label>
+        </div>
+        <div class="tnote">Switches apply the next time the games start</div>
+      </div>
+    </div>
+
+    <div class="tpage" id="tpCoop">
+      <div class="col">
+        <div class="k">Downed and revive</div>
+        <div class="tbox">
+          <label class="tsw"><input type="checkbox" data-sw="downed"><span>Downed instead of game over<small>the partner can pick you up</small></span></label>
+          <label class="tsw"><input type="checkbox" data-sw="revivePrompt"><span>Revive prompt<small>hold Triangle for 1 s within reach</small></span></label>
+          <label class="tsw"><input type="checkbox" data-sw="spectate"><span>Watch partner while down<small>R3 switches the camera</small></span></label>
+        </div>
+        <div class="row"><button class="tbtn" data-run="knockout" id="tKo">Knock out</button><button class="tbtn" data-run="revive" id="tRev">Revive now</button></div>
+        <div class="tnote" id="tKoNote">Knock out drops the selected game's Sora to 0 HP</div>
+      </div>
+      <div class="col">
+        <div class="k">Connection</div>
+        <div class="row"><button class="tbtn" data-run="reconnect" data-seconds="3">Drop and reconnect</button></div>
+        <div class="row"><button class="tbtn" data-run="reconnect" data-seconds="15">Drop for 15 s</button></div>
+        <div class="tnote">Tests rejoining: both games reconnect where they are</div>
+      </div>
+      <div class="col">
+        <div class="k">Next update</div>
+        <div class="tnote">Bring together, freeze, items, debug view and auto tests come in the next steps</div>
+      </div>
+    </div>
+  </div>
+
   <div class="toast" id="toast"></div>
   <div class="offline" id="offline"><div>Launcher closed</div><small>Open Connected Hearts again from its shortcut.</small></div>
 </div>
@@ -317,6 +409,7 @@ img.av { object-fit: cover; }
     else if (launching) setChip(cs, 'amber', 'Starting…');
     else setChip(cs, '', 'Not running');
     $('btnTile').classList.toggle('hide', !(local && both)); $('btnTile').textContent = s.tiled ? 'Re-tile' : 'Tile windows';
+    if (window.renderTest) window.renderTest(s);
 
     // now playing
     var hasLoc = running && !!s.world;
@@ -445,6 +538,7 @@ img.av { object-fit: cover; }
     if (demo === 'waiting') Object.assign(base, { gameRunning: true, gamePid: 18244, myId: '76561198346755207', runtimeRunning: true, lines: base.lines.concat(['13:25:31  Steam session ready. Your SteamID: 76561198346755207', '13:26:02  Hosting for 76561199069387735. Waiting for the other player...']) });
     if (demo === 'connected') Object.assign(base, { world: 'Hollow Bastion', room: 'Postern', gameRunning: true, gamePid: 18244, myId: '76561198346755207', runtimeRunning: true, connected: true, ping: 42, loss: '0.3', lines: base.lines.concat(['13:26:02  Hosting for 76561199069387735. Waiting for the other player...', '13:31:10  Connected.']) });
     if (demo === 'solo') Object.assign(base, { world: 'Hollow Bastion', room: 'Postern', tiled: true, mode: 'local', relayAvailable: true, gameRunning: true, gamePid: 18244, game2Running: true, gamePid2: 18990, myId: 'local', runtimeRunning: true, connected: true, ping: 1, loss: '0.0', lines: base.lines.concat(['13:51:05  Connected.']) });
+    if (demo === 'test') Object.assign(base, { world: 'Hollow Bastion', room: 'Postern', tiled: true, mode: 'local', relayAvailable: true, gameRunning: true, gamePid: 18244, game2Running: true, gamePid2: 18990, myId: 'local', runtimeRunning: true, connected: true, ping: 1, loss: '0.0', test: { god: true, mp: false, switches: { mirrorAll: true, targetBoth: true, saveLock: true, downed: true }, busy: false }, lines: base.lines.concat(['13:51:05  Connected.', '13:52:10  Test: Warp to 05/01 evt 1 on Game 1: done']) });
     if (demo === 'update') Object.assign(base, { update: '0.4.1', lines: base.lines.concat(['13:24:04  Update 0.4.1 available.']) });
     if (demo === 'problem') Object.assign(base, { gameDir: 'C:\\Games\\KH2', problem: 'Game not found', lines: base.lines.concat(['13:24:03  No KINGDOM HEARTS II FINAL MIX.exe in C:\\Games\\KH2. Error']) });
     st = base; render(base);
@@ -478,6 +572,69 @@ img.av { object-fit: cover; }
   function collect() { cmd('collectLogs'); toast('Saving logs to the Desktop'); }
   $('btnCollect').onclick = collect; $('btnCollect2').onclick = collect;
   $('btnTile').onclick = function () { cmd('tile'); };
+
+  // ---- Test tab
+  var tTarget = 'both';
+  var SPOTS = [
+    { n: 'Garden of Assemblage', w: 4, r: 0x1A },
+    { n: 'Tram Common (ball)', w: 2, r: 0x07 },
+    { n: 'Entrance Hall (Heartless)', w: 5, r: 0 },
+    { n: 'Courtyard (Heartless)', w: 5, r: 6 },
+    { n: 'Parlor ambush (8 Shadows)', w: 5, r: 1, e: 1 }
+  ];
+  var WORLDS = [[2, 'Twilight Town'], [4, 'Hollow Bastion'], [5, "Beast's Castle"], [6, 'Olympus Coliseum'], [7, 'Agrabah'], [8, 'Land of Dragons'], [10, 'Pride Lands'], [13, 'Timeless River'], [14, 'Halloween Town'], [16, 'Port Royal'], [17, 'Space Paranoids'], [18, 'The World That Never Was']];
+  var hex = function (n) { return (n < 16 ? '0' : '') + n.toString(16).toUpperCase(); };
+  WORLDS.forEach(function (w) { var o = document.createElement('option'); o.value = w[0]; o.textContent = hex(w[0]) + '  ' + w[1]; $('tWorld').appendChild(o); });
+  SPOTS.forEach(function (sp) {
+    var d = document.createElement('div'); d.className = 'tspot';
+    d.innerHTML = '<span>' + esc(sp.n) + '</span><span class="m">' + hex(sp.w) + '/' + hex(sp.r) + (sp.e ? ' evt ' + sp.e : '') + '</span>';
+    d.onclick = function () {
+      Array.prototype.forEach.call(document.querySelectorAll('.tspot'), function (x) { x.classList.remove('on'); }); d.classList.add('on');
+      $('tWorld').value = sp.w; $('tRoom').value = hex(sp.r); $('tBtl').value = ''; $('tEvt').value = sp.e ? String(sp.e) : '';
+    };
+    $('tSpots').appendChild(d);
+  });
+  function testCmd(action, extra) { cmd('test', Object.assign({ action: action, target: tTarget }, extra || {})); }
+  Array.prototype.forEach.call(document.querySelectorAll('#tTarget button'), function (b) {
+    b.onclick = function () { tTarget = b.dataset.t; Array.prototype.forEach.call(document.querySelectorAll('#tTarget button'), function (x) { x.classList.toggle('on', x === b); }); };
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('.tnav button'), function (b) {
+    b.onclick = function () {
+      Array.prototype.forEach.call(document.querySelectorAll('.tnav button'), function (x) { x.classList.toggle('on', x === b); });
+      Array.prototype.forEach.call(document.querySelectorAll('.tpage'), function (p) { p.classList.toggle('on', p.id === b.dataset.page); });
+    };
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('[data-run]'), function (b) {
+    b.onclick = function () {
+      var a = b.dataset.run;
+      if (a === 'warp') testCmd('warp', { world: $('tWorld').value, room: $('tRoom').value ? '0x' + $('tRoom').value.replace(/^0x/i, '') : '', btl: $('tBtl').value, evt: $('tEvt').value });
+      else if (a === 'mark') { testCmd('mark', { text: $('tMark').value }); $('tMark').value = ''; toast('Marked in the logs'); }
+      else if (a === 'reconnect') testCmd('reconnect', { seconds: b.dataset.seconds });
+      else testCmd(a);
+    };
+  });
+  $('tMark').onkeydown = function (e) { if (e.key === 'Enter') document.querySelector('[data-run="mark"]').click(); };
+  $('tGod').onchange = function () { testCmd('god', { value: $('tGod').checked }); };
+  $('tMp').onchange = function () { testCmd('mp', { value: $('tMp').checked }); };
+  Array.prototype.forEach.call(document.querySelectorAll('[data-sw]'), function (c) { c.onchange = function () { cmd('test', { action: 'switch', id: c.dataset.sw, value: c.checked }); }; });
+  $('btnTest').onclick = function () { $('testPanel').classList.toggle('open'); $('btnTest').classList.toggle('hot', $('testPanel').classList.contains('open')); };
+  $('btnTestClose').onclick = function () { $('testPanel').classList.remove('open'); $('btnTest').classList.remove('hot'); };
+  window.renderTest = function (s) {
+    var t = s.test; $('btnTest').classList.toggle('hide', !t);
+    if (!t) { $('testPanel').classList.remove('open'); return; }
+    var running = !!s.gameRunning, local = s.mode === 'local';
+    Array.prototype.forEach.call(document.querySelectorAll('#tTarget button'), function (b) { b.disabled = !local && b.dataset.t !== 'both'; });
+    if (!local && tTarget !== 'both') document.querySelector('#tTarget button[data-t="both"]').click();
+    if (document.activeElement !== $('tGod')) $('tGod').checked = !!t.god;
+    if (document.activeElement !== $('tMp')) $('tMp').checked = !!t.mp;
+    Array.prototype.forEach.call(document.querySelectorAll('[data-sw]'), function (c) { if (document.activeElement !== c) c.checked = !!(t.switches || {})[c.dataset.sw]; });
+    Array.prototype.forEach.call(document.querySelectorAll('#tpFights [data-run], #tpCoop [data-run]'), function (b) { b.disabled = !running; });
+    Array.prototype.forEach.call(document.querySelectorAll('[data-run="reconnect"]'), function (b) { b.disabled = !s.runtimeRunning; });
+    var downed = !!(t.switches || {}).downed;
+    $('tKo').disabled = !running || !downed || !!t.god; $('tRev').disabled = !running || !downed;
+    $('tKoNote').textContent = !downed ? 'Turn on Downed, then restart the games to use these' : t.god ? 'Turn off God mode to knock out' : "Knock out drops the selected game's Sora to 0 HP";
+  }
+  if (st) window.renderTest(st);
   function toggleLog(open) { var b = $('logBox'); b.classList.toggle('open', open); if (b.classList.contains('open')) $('lines').scrollTop = $('lines').scrollHeight; }
   $('btnMore').onclick = function () { toggleLog(!$('logBox').classList.contains('open')); };
   $('btnLogClose').onclick = function () { toggleLog(false); };
