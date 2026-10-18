@@ -1096,6 +1096,7 @@ namespace ConnectedHearts
                     object cv; string name = d.TryGetValue("cmd", out cv) && cv != null ? cv.ToString() : "";
                     if (name == "browse" || name == "closeUi") continue;
                     Log("Remote: " + name + (d.ContainsKey("action") ? " " + d["action"] : ""));
+                    if (name == "quitLauncher") { CloseGame(); if (Exit != null) Exit(); return; } // reopened from outside after an update
                     if (name == "chtest")
                     {
                         // Any chtest command except the ones that start, inject or crash games; the answer goes to results\<file>_<pid>.json.
