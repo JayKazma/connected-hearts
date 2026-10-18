@@ -337,8 +337,13 @@ img.av { object-fit: cover; }
         <div class="tnote">Tests rejoining: both games reconnect where they are</div>
       </div>
       <div class="col">
-        <div class="k">Next update</div>
-        <div class="tnote">Bring together, freeze, items, debug view and auto tests come in the next steps</div>
+        <div class="k">Dev build</div>
+        <div class="tbox" style="padding:8px 10px;gap:6px">
+          <div class="row" style="justify-content:space-between;font-size:12px"><span style="color:var(--muted)">This machine</span><span class="mono" id="tDevLocal" style="font-size:11px">none</span></div>
+          <div class="row" style="justify-content:space-between;font-size:12px"><span style="color:var(--muted)">Latest</span><span class="mono" id="tDevRemote" style="font-size:11px">—</span></div>
+        </div>
+        <div class="row"><button class="tbtn hot" id="tDevGet">Get latest dev build</button><button class="tbtn" id="tDevCheck" style="flex:none">Check</button></div>
+        <div class="tnote" id="tDevNote">Close the games first; the launcher restarts itself</div>
       </div>
     </div>
   </div>
@@ -538,7 +543,7 @@ img.av { object-fit: cover; }
     if (demo === 'waiting') Object.assign(base, { gameRunning: true, gamePid: 18244, myId: '76561198346755207', runtimeRunning: true, lines: base.lines.concat(['13:25:31  Steam session ready. Your SteamID: 76561198346755207', '13:26:02  Hosting for 76561199069387735. Waiting for the other player...']) });
     if (demo === 'connected') Object.assign(base, { world: 'Hollow Bastion', room: 'Postern', gameRunning: true, gamePid: 18244, myId: '76561198346755207', runtimeRunning: true, connected: true, ping: 42, loss: '0.3', lines: base.lines.concat(['13:26:02  Hosting for 76561199069387735. Waiting for the other player...', '13:31:10  Connected.']) });
     if (demo === 'solo') Object.assign(base, { world: 'Hollow Bastion', room: 'Postern', tiled: true, mode: 'local', relayAvailable: true, gameRunning: true, gamePid: 18244, game2Running: true, gamePid2: 18990, myId: 'local', runtimeRunning: true, connected: true, ping: 1, loss: '0.0', lines: base.lines.concat(['13:51:05  Connected.']) });
-    if (demo === 'test') Object.assign(base, { world: 'Hollow Bastion', room: 'Postern', tiled: true, mode: 'local', relayAvailable: true, gameRunning: true, gamePid: 18244, game2Running: true, gamePid2: 18990, myId: 'local', runtimeRunning: true, connected: true, ping: 1, loss: '0.0', test: { god: true, mp: false, switches: { mirrorAll: true, targetBoth: true, saveLock: true, downed: true }, busy: false }, lines: base.lines.concat(['13:51:05  Connected.', '13:52:10  Test: Warp to 05/01 evt 1 on Game 1: done']) });
+    if (demo === 'test') Object.assign(base, { world: 'Hollow Bastion', room: 'Postern', tiled: true, mode: 'local', relayAvailable: true, gameRunning: true, gamePid: 18244, game2Running: true, gamePid2: 18990, myId: 'local', runtimeRunning: true, connected: true, ping: 1, loss: '0.0', test: { god: true, mp: false, switches: { mirrorAll: true, targetBoth: true, saveLock: true, downed: true }, busy: false, devLocal: '20261018.2', devRemote: '20261018.3', devState: 'available', devNotes: 'Boss sync, Shadows' }, lines: base.lines.concat(['13:51:05  Connected.', '13:52:10  Test: Warp to 05/01 evt 1 on Game 1: done']) });
     if (demo === 'update') Object.assign(base, { update: '0.4.1', lines: base.lines.concat(['13:24:04  Update 0.4.1 available.']) });
     if (demo === 'problem') Object.assign(base, { gameDir: 'C:\\Games\\KH2', problem: 'Game not found', lines: base.lines.concat(['13:24:03  No KINGDOM HEARTS II FINAL MIX.exe in C:\\Games\\KH2. Error']) });
     st = base; render(base);
@@ -613,6 +618,8 @@ img.av { object-fit: cover; }
       else testCmd(a);
     };
   });
+  $('tDevGet').onclick = function () { cmd('test', { action: 'devInstall' }); };
+  $('tDevCheck').onclick = function () { cmd('test', { action: 'devCheck' }); };
   $('tMark').onkeydown = function (e) { if (e.key === 'Enter') document.querySelector('[data-run="mark"]').click(); };
   $('tGod').onchange = function () { testCmd('god', { value: $('tGod').checked }); };
   $('tMp').onchange = function () { testCmd('mp', { value: $('tMp').checked }); };
@@ -630,6 +637,12 @@ img.av { object-fit: cover; }
     Array.prototype.forEach.call(document.querySelectorAll('[data-sw]'), function (c) { if (document.activeElement !== c) c.checked = !!(t.switches || {})[c.dataset.sw]; });
     Array.prototype.forEach.call(document.querySelectorAll('#tpFights [data-run], #tpCoop [data-run]'), function (b) { b.disabled = !running; });
     Array.prototype.forEach.call(document.querySelectorAll('[data-run="reconnect"]'), function (b) { b.disabled = !s.runtimeRunning; });
+    $('tDevLocal').textContent = t.devLocal || 'none';
+    $('tDevRemote').textContent = t.devRemote || (t.devState === 'checking' ? 'checking…' : '—');
+    var devNew = !!t.devRemote && t.devRemote !== t.devLocal, anyGame = running || !!s.game2Running;
+    $('tDevGet').disabled = !devNew || anyGame || !!s.updating;
+    $('tDevGet').textContent = s.updating ? 'Downloading…' : devNew ? 'Get latest dev build' : 'Up to date';
+    $('tDevNote').textContent = t.devState === 'check failed' ? 'Could not reach the dev builds; try Check again' : anyGame && devNew ? 'Close the games first; the launcher restarts itself' : t.devNotes || 'The launcher restarts itself after updating';
     var downed = !!(t.switches || {}).downed;
     $('tKo').disabled = !running || !downed || !!t.god; $('tRev').disabled = !running || !downed;
     $('tKoNote').textContent = !downed ? 'Turn on Downed, then restart the games to use these' : t.god ? 'Turn off God mode to knock out' : "Knock out drops the selected game's Sora to 0 HP";

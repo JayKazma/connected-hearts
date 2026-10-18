@@ -3,3 +3,4 @@ build/webview2/
 build/
 settings.json
 tools/inject/*.o
+dist-dev/

@@ -304,7 +304,8 @@ namespace ConnectedHearts
                 var sw = new Dictionary<string, object>();
                 foreach (var t in TestSwitches) sw[t.Id] = SwitchOn(t);
                 sw["saveLock"] = SaveLock;
-                d["test"] = new Dictionary<string, object> { { "switches", sw }, { "god", TestGod }, { "mp", TestMp }, { "busy", testBusy > 0 } };
+                d["test"] = new Dictionary<string, object> { { "switches", sw }, { "god", TestGod }, { "mp", TestMp }, { "busy", testBusy > 0 },
+                    { "devLocal", DevLocal }, { "devRemote", DevRemote }, { "devNotes", DevNotes }, { "devState", DevState } };
             }
             return json.Serialize(d);
         }
@@ -398,6 +399,45 @@ namespace ConnectedHearts
         {
             if (Update.Length == 0 || GameAlive || downloadTask != null) return;
             Updating = true; Log("Downloading " + Update + "...");
+            Download(UpdateBase + "/dist/connected-hearts-update.zip");
+        }
+        // Developer builds (Test tab only): a separate dev branch, never the live channel. The build id
+        // installed here is kept in dev-build.txt; version.txt and the live updates are not touched.
+        const string DevBase = "https://raw.githubusercontent.com/JayKazma/connected-hearts/dev/dev";
+        public string DevRemote = "", DevNotes = "", DevState = "";
+        string installingDev; Task<string[]> devCheckTask;
+        public string DevLocal { get { try { string f = Path.Combine(Root, "dev-build.txt"); return File.Exists(f) ? File.ReadAllText(f).Trim() : ""; } catch { return ""; } } }
+        public void CheckDev()
+        {
+            if (!TestKit || devCheckTask != null) return;
+            DevState = "checking";
+            devCheckTask = Task.Factory.StartNew(() =>
+            {
+                using (var wc = new WebClient())
+                {
+                    wc.Headers["User-Agent"] = "ConnectedHearts-Launcher"; wc.Headers["Cache-Control"] = "no-cache";
+                    string text = wc.DownloadString(DevBase + "/build.txt?t=" + DateTimeOffset.UtcNow.ToUnixTimeSeconds());
+                    var parts = text.Replace("\r", "").Split(new[] { '\n' }, 2);
+                    return new[] { parts[0].Trim(), parts.Length > 1 ? parts[1].Trim() : "" };
+                }
+            });
+        }
+        void CompleteCheckDev(Task<string[]> t)
+        {
+            if (t.IsFaulted) { DevState = "check failed"; Log("Dev build check failed: " + Inner(t.Exception)); return; }
+            if (!Regex.IsMatch(t.Result[0], @"^[\w.\-]{1,64}$")) { DevState = "check failed"; Log("Dev build check: unexpected id."); return; }
+            DevRemote = t.Result[0]; DevNotes = t.Result[1];
+            DevState = DevRemote == DevLocal ? "up to date" : "available";
+            Log(DevState == "available" ? "Dev build " + DevRemote + " available (this machine: " + (DevLocal.Length > 0 ? DevLocal : "none") + ")." : "Dev build up to date (" + DevRemote + ").");
+        }
+        public void InstallDev()
+        {
+            if (!TestKit || DevRemote.Length == 0 || GameAlive || Game2Alive || downloadTask != null) { if (GameAlive || Game2Alive) Log("Close the games first, then get the dev build."); return; }
+            Updating = true; installingDev = DevRemote; Log("Downloading dev build " + DevRemote + "...");
+            Download(DevBase + "/connected-hearts-dev.zip");
+        }
+        void Download(string url)
+        {
             downloadTask = Task.Factory.StartNew(() =>
             {
                 using (var wc = new WebClient())
@@ -405,7 +445,7 @@ namespace ConnectedHearts
                     wc.Headers["User-Agent"] = "ConnectedHearts-Launcher"; wc.Headers["Cache-Control"] = "no-cache";
                     string bust = "?t=" + DateTimeOffset.UtcNow.ToUnixTimeSeconds();
                     string tmp = Path.Combine(Path.GetTempPath(), "connected-hearts-update-" + Guid.NewGuid().ToString("N") + ".zip");
-                    wc.DownloadFile(UpdateBase + "/dist/connected-hearts-update.zip" + bust, tmp);
+                    wc.DownloadFile(url + bust, tmp);
                     string stage = Path.Combine(Path.GetTempPath(), "connected-hearts-stage-" + Guid.NewGuid().ToString("N"));
                     ZipFile.ExtractToDirectory(tmp, stage);
                     try { File.Delete(tmp); } catch { }
@@ -416,7 +456,8 @@ namespace ConnectedHearts
         void CompleteInstallUpdate(Task<string> t)
         {
             Updating = false;
-            if (t.IsFaulted) { Log("Update failed: " + Inner(t.Exception)); return; }
+            string dev = installingDev; installingDev = null;
+            if (t.IsFaulted) { Log((dev != null ? "Dev build" : "Update") + " failed: " + Inner(t.Exception)); return; }
             string stage = t.Result;
             try
             {
@@ -434,6 +475,13 @@ namespace ConnectedHearts
                 string newExe = Path.Combine(stage, "ConnectedHearts.exe"), me = Path.Combine(Root, "ConnectedHearts.exe");
                 if (File.Exists(newExe) && !SameFile(newExe, me)) { ReplaceFile(newExe, me); restart = true; }
                 try { Directory.Delete(stage, true); } catch { }
+                if (dev != null)
+                {
+                    File.WriteAllText(Path.Combine(Root, "dev-build.txt"), dev);
+                    DevState = "up to date"; Log("Dev build " + dev + " installed.");
+                    if (restart) { Log("Launcher updated, restarting..."); RestartAfterExit = true; if (Exit != null) Exit(); }
+                    return;
+                }
                 Update = ""; UpdateText = "up to date";
                 Log("Updated to " + LocalVersion() + ".");
                 if (restart) { Log("Launcher updated, restarting..."); RestartAfterExit = true; if (Exit != null) Exit(); }
@@ -1061,6 +1109,8 @@ namespace ConnectedHearts
                     RunTest("Mark", TestTargets("both"), p => "test mark " + text);
                     break;
                 }
+                case "devCheck": CheckDev(); break;
+                case "devInstall": InstallDev(); break;
                 case "reconnect":
                     if (!RuntimeAlive && !Connected) { Log("Test: not connected."); return; }
                     StopRuntime(); reconnectAt = DateTime.Now.AddSeconds(Math.Max(1, Math.Min(30, Num(str("seconds")) ?? 3)));
@@ -1152,6 +1202,7 @@ namespace ConnectedHearts
             {
                 if (updateTask != null && updateTask.IsCompleted) { var t = updateTask; updateTask = null; CompleteCheckUpdate(t); }
                 if (downloadTask != null && downloadTask.IsCompleted) { var t = downloadTask; downloadTask = null; CompleteInstallUpdate(t); }
+                if (devCheckTask != null && devCheckTask.IsCompleted) { var t = devCheckTask; devCheckTask = null; CompleteCheckDev(t); }
                 if (launchTask != null && launchTask.IsCompleted) { var t = launchTask; launchTask = null; CompleteStartGame(t); }
                 PollSteamId();
                 PollField();
@@ -1484,7 +1535,7 @@ namespace ConnectedHearts
             {
                 ticks++;
                 if (ticks % 3 == 0) core.Tick();
-                if (!noUpdate && ticks == 2) core.CheckUpdate();
+                if (!noUpdate && ticks == 2) { core.CheckUpdate(); core.CheckDev(); }
                 PushState();
             };
             timer.Start();
