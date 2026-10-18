@@ -1,2 +1,2 @@
-20261018.4
-Boss copy: Lexaeus
+20261018.5
+Large bosses (Twilight Thorn) and large enemies get HP, hit and defeat sync.

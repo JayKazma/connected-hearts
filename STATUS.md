@@ -27,11 +27,15 @@ Read this first in a new chat. Updated with every dev build.
 - Bosses: friend's hits count (boss claims skip the full-match hold), a boss body that vanishes with HP left isn't
   a death, the host's boss defeat ends the boss on the friend's game. Larxene AS (04/21 map/btl/evt 128) end to end;
   Lexaeus AS (04/21 programs 122) HP sync.
+- Fixed: crash dump on every game close (render worker std::thread destructor at exit).
+- Dev builds: Test tab > Co-op > Dev build; 20261018.4 on the PC.
 
 ## Open
-1. Boss reaction commands and struggles are per game (Lexaeus power meter differs).
+1. Boss copying (Test switch "Copy the host's boss", KH2COOP_MIRROR_BOSSES=1): boss by boss, list in
+   inject/src/EnemyMirrorPose.hpp kMirroredBosses. Lexaeus done (position, motion, hits, HP). Larxene's duplicates
+   are made by her own AI on each game, so she stays uncopied. Struggle gauges (Lexaeus power) and reaction
+   commands on Game 2 are still per game.
 2. A multi-part boss is untested; enemy projectiles and rejoin mid-fight are untested.
-3. Crash dump with code 0x40000015 when a game window is closed.
-4. Drive Forms in co-op; Sora 2 shows the friend's keyblade; keyblade swap only visible to the switcher.
-5. Test tab: bring together, freeze, items, debug view, auto tests; quick spots for Larxene/Lexaeus.
-6. Release 0.1.4 (go-ahead needed); website with the installer link; trim debug logs.
+3. Drive Forms in co-op; Sora 2 shows the friend's keyblade; keyblade swap only visible to the switcher.
+4. Test tab: bring together, freeze, items, debug view, auto tests.
+5. Release 0.1.4 (go-ahead needed); website with the installer link; trim debug logs.
