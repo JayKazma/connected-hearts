@@ -1,2 +1,2 @@
-20261018.11
-Boss defeat reaches the friend at the hit (was about 10 s late). Replaces 20261018.10, which had the previous mod files.
+20261018.12
+Copy the host's boss now includes Axel I (candidate).
