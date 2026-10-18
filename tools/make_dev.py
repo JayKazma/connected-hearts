@@ -37,6 +37,8 @@ def main() -> None:
     ap.add_argument('--publish', action='store_true')
     a = ap.parse_args()
     git('fetch', 'origin', '+refs/heads/dev:refs/remotes/origin/dev', check=False)
+    # The committed ConnectedHearts.exe is the live (release) launcher; the dev zip needs one built from this tree.
+    subprocess.run(['sh', 'tools/build_exe.sh'], cwd=ROOT, check=True)
     build = next_id()
     out = ROOT / 'dist-dev'
     shutil.rmtree(out, ignore_errors=True)
@@ -52,6 +54,8 @@ def main() -> None:
             if f.is_file():
                 z.write(f, 'ui/' + f.name)
     (out / 'build.txt').write_text(build + '\n' + a.notes.strip() + '\n', encoding='utf-8')
+    for f in ('ConnectedHearts.exe', 'Setup.exe'):
+        git('checkout', '--', f, check=False)
     print(build, zpath.stat().st_size, 'bytes')
     if not a.publish:
         return
