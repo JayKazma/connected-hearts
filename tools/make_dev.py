@@ -36,7 +36,7 @@ def main() -> None:
     ap.add_argument('--notes', default='')
     ap.add_argument('--publish', action='store_true')
     a = ap.parse_args()
-    git('fetch', 'origin', 'dev', check=False)
+    git('fetch', 'origin', '+refs/heads/dev:refs/remotes/origin/dev', check=False)
     build = next_id()
     out = ROOT / 'dist-dev'
     shutil.rmtree(out, ignore_errors=True)
