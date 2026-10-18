@@ -1,2 +1,2 @@
-20261018.1
-Dev update button; Shadow and boss sync; Larxene end to end
+20261018.2
+Fix: crash report on every game close
