@@ -1,2 +1,2 @@
-20261018.8
-Copy the host's boss now includes Twilight Thorn (candidate).
+20261018.9
+Copied bosses let go of a grabbed player (Twilight Thorn's opening grab).
