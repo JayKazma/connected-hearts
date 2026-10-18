@@ -50,6 +50,7 @@ def main() -> None:
             z.write(src / f, 'bin/' + f)
         z.write(a.chtest, 'bin/chtest.exe')
         z.write(ROOT / 'ConnectedHearts.exe', 'ConnectedHearts.exe')
+        z.writestr('dev-build.txt', build + '\n')
         for f in sorted((ROOT / 'ui').iterdir()):
             if f.is_file():
                 z.write(f, 'ui/' + f.name)

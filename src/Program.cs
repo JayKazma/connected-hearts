@@ -475,6 +475,8 @@ namespace ConnectedHearts
                 }
                 string newExe = Path.Combine(stage, "ConnectedHearts.exe"), me = Path.Combine(Root, "ConnectedHearts.exe");
                 if (File.Exists(newExe) && !SameFile(newExe, me)) { ReplaceFile(newExe, me); restart = true; }
+                string zipId = Path.Combine(stage, "dev-build.txt"); // the zip's own id beats the last check (the CDN can lag)
+                if (dev != null && File.Exists(zipId)) { string id = File.ReadAllText(zipId).Trim(); if (Regex.IsMatch(id, @"^[\w.\-]{1,64}$")) dev = id; }
                 try { Directory.Delete(stage, true); } catch { }
                 if (dev != null)
                 {
