@@ -33,15 +33,18 @@ Read this first in a new chat. Updated with every dev build.
   (02/22 from save slot 3, LV1 Roxas; `boot.py load 1`) verified 2026-10-18: Game 2's hits became boss claims, the host
   applied them (HP 2 -> 0 from Game 2's last hit) and both games went to the after-fight cutscene together.
 - Fixed: crash dump on every game close (render worker std::thread destructor at exit).
-- Dev builds: Test tab > Co-op > Dev build; 20261018.7 on the PC. The zip carries its own build id.
+- Dev builds: Test tab > Co-op > Dev build; 20261018.11 on the PC. The zip carries its own build id.
 
 ## Open
 1. Boss copying (Test switch "Copy the host's boss", KH2COOP_MIRROR_BOSSES=1): boss by boss, list in
    inject/src/EnemyMirrorPose.hpp kMirroredBosses. Lexaeus done (position, motion, hits, HP). Twilight Thorn
    (candidate, 20261018.9): position, motion, hits, HP and defeat match; while a boss holds the local player
    (player+0x2B0 = the boss, a grab) the friend's own AI keeps it until it lets go, then the copy resumes. Not yet
-   seen: Key Counter/Reversal on the friend's game during those grabs. When the host lands the last hit, the friend
-   reached the after-fight cutscene about 15 s later. Larxene's duplicates
+   seen: Key Counter/Reversal on the friend's game during those grabs.
+   Fixed 20261018.11: a boss's defeat cutscene starts on the frame its HP hits 0, and the host only sent the death
+   from its census (open gameplay only), so the friend ended the fight ~9.7 s late. The host now sends the death
+   from the HP-change hook ("host death ... (at the hit)"); measured 0.2 s. (20261018.10 shipped old mod files.)
+   Larxene's duplicates
    are made by her own AI on each game, so she stays uncopied. Struggle gauges (Lexaeus power) and reaction
    commands on Game 2 are still per game.
 2. A multi-part boss is untested; enemy projectiles and rejoin mid-fight are untested.
