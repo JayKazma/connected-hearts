@@ -981,6 +981,7 @@ namespace ConnectedHearts
         {
             new TestSwitch { Id = "mirrorAll", Env = new[] { "KH2COOP_ENEMY_MIRROR_ALL" }, On = "1" },
             new TestSwitch { Id = "targetBoth", Env = new[] { "KH2COOP_ENEMY_TARGET_REMOTE" }, On = "1" },
+            new TestSwitch { Id = "mirrorBosses", Env = new[] { "KH2COOP_MIRROR_BOSSES", "KH2COOP_ENEMY_MIRROR_ALL" }, On = "1" },
             new TestSwitch { Id = "fixEnemies", Env = new[] { "KH2COOP_ENEMY_POPULATION", "KH2COOP_ENEMY_POPULATION_SPAWN" }, On = "1" },
             new TestSwitch { Id = "ballOff", Env = new[] { "KH2COOP_BALL_SYNC" }, On = "0" },
             new TestSwitch { Id = "keepParty", Env = new[] { "KH2COOP_NO_COMPANION" }, On = "0" },
@@ -1087,9 +1088,9 @@ namespace ConnectedHearts
             {
                 case "warp":
                 {
-                    int? w = Num(str("world")), r = Num(str("room")), b = Num(str("btl")), e = Num(str("evt"));
+                    int? w = Num(str("world")), r = Num(str("room")), m = Num(str("map")), b = Num(str("btl")), e = Num(str("evt"));
                     if (w == null || r == null) { Log("Test: warp needs a world and a room."); return; }
-                    string extra = (b != null ? " --btl " + b : "") + (e != null ? " --evt " + e : "");
+                    string extra = (m != null ? " --map " + m : "") + (b != null ? " --btl " + b : "") + (e != null ? " --evt " + e : "");
                     RunTest("Warp to " + w.Value.ToString("X2") + "/" + r.Value.ToString("X2") + extra, pids, p => Follows(p) ? null : "warp --world " + w + " --room " + r + extra + " --timeout-ms 20000");
                     break;
                 }

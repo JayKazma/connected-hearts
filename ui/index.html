@@ -311,6 +311,7 @@ img.av { object-fit: cover; }
           <label class="tsw"><input type="checkbox" data-sw="mirrorAll"><span>Copy all regular enemies<small>not only the tested families</small></span></label>
           <label class="tsw"><input type="checkbox" data-sw="targetBoth"><span>Enemies target both players<small>Sora 2 can be attacked too</small></span></label>
           <label class="tsw"><input type="checkbox" data-sw="fixEnemies"><span>Fix extra or missing enemies<small>removes or spawns to match the host</small></span></label>
+          <label class="tsw"><input type="checkbox" data-sw="mirrorBosses"><span>Copy the host's boss<small>Game 2's boss follows the host's moves</small></span></label>
           <label class="tsw"><input type="checkbox" data-sw="ballOff"><span>Turn off the shared ball</span></label>
           <label class="tsw"><input type="checkbox" data-sw="keepParty"><span>Keep Donald and Goofy</span></label>
           <label class="tsw"><input type="checkbox" data-sw="saveLock"><span>Save lock<small>in-game saves are not kept</small></span></label>
@@ -579,23 +580,25 @@ img.av { object-fit: cover; }
   $('btnTile').onclick = function () { cmd('tile'); };
 
   // ---- Test tab
-  var tTarget = 'both';
+  var tTarget = 'both', tMap = '';
   var SPOTS = [
     { n: 'Garden of Assemblage', w: 4, r: 0x1A },
     { n: 'Tram Common (ball)', w: 2, r: 0x07 },
     { n: 'Entrance Hall (Heartless)', w: 5, r: 0 },
     { n: 'Courtyard (Heartless)', w: 5, r: 6 },
-    { n: 'Parlor ambush (8 Shadows)', w: 5, r: 1, e: 1 }
+    { n: 'Parlor ambush (8 Shadows)', w: 5, r: 1, e: 1 },
+    { n: 'Larxene (boss)', w: 4, r: 0x21, m: 128, b: 128, e: 128 },
+    { n: 'Lexaeus (boss)', w: 4, r: 0x21, m: 122, b: 122, e: 122 }
   ];
   var WORLDS = [[2, 'Twilight Town'], [4, 'Hollow Bastion'], [5, "Beast's Castle"], [6, 'Olympus Coliseum'], [7, 'Agrabah'], [8, 'Land of Dragons'], [10, 'Pride Lands'], [13, 'Timeless River'], [14, 'Halloween Town'], [16, 'Port Royal'], [17, 'Space Paranoids'], [18, 'The World That Never Was']];
   var hex = function (n) { return (n < 16 ? '0' : '') + n.toString(16).toUpperCase(); };
   WORLDS.forEach(function (w) { var o = document.createElement('option'); o.value = w[0]; o.textContent = hex(w[0]) + '  ' + w[1]; $('tWorld').appendChild(o); });
   SPOTS.forEach(function (sp) {
     var d = document.createElement('div'); d.className = 'tspot';
-    d.innerHTML = '<span>' + esc(sp.n) + '</span><span class="m">' + hex(sp.w) + '/' + hex(sp.r) + (sp.e ? ' evt ' + sp.e : '') + '</span>';
+    d.innerHTML = '<span>' + esc(sp.n) + '</span><span class="m">' + hex(sp.w) + '/' + hex(sp.r) + (sp.b ? ' btl ' + sp.b : sp.e ? ' evt ' + sp.e : '') + '</span>';
     d.onclick = function () {
       Array.prototype.forEach.call(document.querySelectorAll('.tspot'), function (x) { x.classList.remove('on'); }); d.classList.add('on');
-      $('tWorld').value = sp.w; $('tRoom').value = hex(sp.r); $('tBtl').value = ''; $('tEvt').value = sp.e ? String(sp.e) : '';
+      $('tWorld').value = sp.w; $('tRoom').value = hex(sp.r); $('tBtl').value = sp.b ? String(sp.b) : ''; $('tEvt').value = sp.e ? String(sp.e) : ''; tMap = sp.m || '';
     };
     $('tSpots').appendChild(d);
   });
@@ -612,7 +615,7 @@ img.av { object-fit: cover; }
   Array.prototype.forEach.call(document.querySelectorAll('[data-run]'), function (b) {
     b.onclick = function () {
       var a = b.dataset.run;
-      if (a === 'warp') testCmd('warp', { world: $('tWorld').value, room: $('tRoom').value ? '0x' + $('tRoom').value.replace(/^0x/i, '') : '', btl: $('tBtl').value, evt: $('tEvt').value });
+      if (a === 'warp') testCmd('warp', { world: $('tWorld').value, room: $('tRoom').value ? '0x' + $('tRoom').value.replace(/^0x/i, '') : '', map: String(tMap), btl: $('tBtl').value, evt: $('tEvt').value });
       else if (a === 'mark') { testCmd('mark', { text: $('tMark').value }); $('tMark').value = ''; toast('Marked in the logs'); }
       else if (a === 'reconnect') testCmd('reconnect', { seconds: b.dataset.seconds });
       else testCmd(a);
@@ -620,6 +623,7 @@ img.av { object-fit: cover; }
   });
   $('tDevGet').onclick = function () { cmd('test', { action: 'devInstall' }); };
   $('tDevCheck').onclick = function () { cmd('test', { action: 'devCheck' }); };
+  ['tWorld', 'tRoom', 'tBtl', 'tEvt'].forEach(function (id) { $(id).addEventListener('input', function () { tMap = ''; }); });
   $('tMark').onkeydown = function (e) { if (e.key === 'Enter') document.querySelector('[data-run="mark"]').click(); };
   $('tGod').onchange = function () { testCmd('god', { value: $('tGod').checked }); };
   $('tMp').onchange = function () { testCmd('mp', { value: $('tMp').checked }); };
