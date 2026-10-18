@@ -39,6 +39,7 @@ namespace ConnectedHearts
         [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h, out RECT r);
         [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h, out uint pid);
         [DllImport("user32.dll")] public static extern IntPtr GetWindow(IntPtr h, uint cmd);
+        [DllImport("user32.dll")] public static extern bool PostMessage(IntPtr h, int msg, IntPtr w, IntPtr l);
         public delegate bool EnumWindowsProc(IntPtr h, IntPtr l);
 
         // The main top-level window of a process (KH2 creates its window a while after launch).
@@ -1109,6 +1110,10 @@ namespace ConnectedHearts
                     RunTest("Mark", TestTargets("both"), p => "test mark " + text);
                     break;
                 }
+                case "closeWindows":
+                    // The way a player closes the game (WM_CLOSE to its window), unlike Close game, which kills it.
+                    foreach (var p in pids) { IntPtr h = Native.MainWindowOf(p); Log("Test: close window of " + GameLabel(p) + (h != IntPtr.Zero && Native.PostMessage(h, 0x10, IntPtr.Zero, IntPtr.Zero) ? " sent." : " not found.")); }
+                    break;
                 case "devCheck": CheckDev(); break;
                 case "devInstall": InstallDev(); break;
                 case "reconnect":
