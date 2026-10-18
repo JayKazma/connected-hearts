@@ -1,2 +1,2 @@
-20261018.5
-Large bosses (Twilight Thorn) and large enemies get HP, hit and defeat sync.
+20261018.6
+Large bosses (Twilight Thorn) and large enemies get HP, hit and defeat sync. Fixes 20261018.5, which shipped the release launcher.
