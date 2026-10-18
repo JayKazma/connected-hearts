@@ -1,2 +1,2 @@
-20261018.2
-Fix: crash report on every game close
+20261018.3
+Boss copy switch (trial), boss quick spots
