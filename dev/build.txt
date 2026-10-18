@@ -1,2 +1,2 @@
-20261018.7
-Boss hit logging for Twilight Thorn; the dev zip carries its own build id.
+20261018.8
+Copy the host's boss now includes Twilight Thorn (candidate).
