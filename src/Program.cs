@@ -807,6 +807,7 @@ namespace ConnectedHearts
         }
         void ParseRuntimeLine(string line)
         {
+            if (line.StartsWith("[runtime-identity]")) return; // diagnostics for the runtime log only
             var party = Regex.Match(line, @"^\[Party\] me (.*) \| peer (.*)$");
             if (party.Success) { PartyMe = PartyStats(party.Groups[1].Value); PartyPeer = PartyStats(party.Groups[2].Value); return; }
             var rs = Regex.Match(line, @"Room state: world=(\d+) room=(\d+)");
@@ -962,8 +963,12 @@ namespace ConnectedHearts
         }
         string GameLabel(int pid) { return Mode == "local" ? (pid == GamePid ? "Game 1" : "Game 2") : "Game"; }
 
-        // Runs chtest once per game in the background and logs each answer.
-        void RunTest(string label, List<int> pids, Func<int, string> args)
+        // One chtest at a time per game: commands share the game's single request slot.
+        readonly Dictionary<int, object> testLocks = new Dictionary<int, object>();
+        object TestLock(int pid) { lock (testLocks) { object o; if (!testLocks.TryGetValue(pid, out o)) testLocks[pid] = o = new object(); return o; } }
+
+        // Runs chtest once per game in the background and logs each answer (and saves it to resultPath when given).
+        void RunTest(string label, List<int> pids, Func<int, string> args, string resultPath = null)
         {
             if (pids.Count == 0) { Log("Test: no game running."); return; }
             foreach (var pid in pids)
@@ -975,7 +980,9 @@ namespace ConnectedHearts
                 {
                     try
                     {
-                        string outText = string.Join(" ", RunCapture(TestTool, a + " --pid " + p, null));
+                        string outText;
+                        lock (TestLock(p)) outText = string.Join(" ", RunCapture(TestTool, a + " --pid " + p, null));
+                        if (resultPath != null) { try { Directory.CreateDirectory(Path.GetDirectoryName(resultPath)); File.WriteAllText(resultPath.Replace("{pid}", p.ToString()), outText); } catch { } }
                         var m = Regex.Match(outText, "\"error\":\"((?:[^\"\\\\]|\\\\.)*)\"");
                         bool ok = outText.Contains("\"ok\":true");
                         var path = Regex.Match(outText, "\"path\":\"((?:[^\"\\\\]|\\\\.)*)\"");
@@ -1012,6 +1019,14 @@ namespace ConnectedHearts
             return null;
         }
 
+        // While connected, the joining game goes where the host goes; its own warps are refused.
+        bool Follows(int pid)
+        {
+            bool f = Connected && ((Mode == "local" && pid == GamePid2) || Mode == "join");
+            if (f) Log("Test: " + GameLabel(pid) + " follows the host while connected; warp the host.");
+            return f;
+        }
+
         void HandleTest(Dictionary<string, object> c)
         {
             object v;
@@ -1026,11 +1041,11 @@ namespace ConnectedHearts
                     int? w = Num(str("world")), r = Num(str("room")), b = Num(str("btl")), e = Num(str("evt"));
                     if (w == null || r == null) { Log("Test: warp needs a world and a room."); return; }
                     string extra = (b != null ? " --btl " + b : "") + (e != null ? " --evt " + e : "");
-                    RunTest("Warp to " + w.Value.ToString("X2") + "/" + r.Value.ToString("X2") + extra, pids, p => "warp --world " + w + " --room " + r + extra + " --timeout-ms 20000");
+                    RunTest("Warp to " + w.Value.ToString("X2") + "/" + r.Value.ToString("X2") + extra, pids, p => Follows(p) ? null : "warp --world " + w + " --room " + r + extra + " --timeout-ms 20000");
                     break;
                 }
                 case "restartRoom":
-                    RunTest("Restart room", pids, p => { var wr = RoomOf(p); if (wr == null) { Log("Test: " + GameLabel(p) + " has no room yet."); return null; } return "warp --world " + wr[0] + " --room " + wr[1] + " --timeout-ms 20000"; });
+                    RunTest("Restart room", pids, p => { if (Follows(p)) return null; var wr = RoomOf(p); if (wr == null) { Log("Test: " + GameLabel(p) + " has no room yet."); return null; } return "warp --world " + wr[0] + " --room " + wr[1] + " --timeout-ms 20000"; });
                     break;
                 case "god": TestGod = flag("value"); SaveSettings(); RunTest(TestGod ? "God mode on" : "God mode off", TestTargets("both"), p => "test god " + (TestGod ? "on" : "off")); break;
                 case "mp": TestMp = flag("value"); SaveSettings(); RunTest(TestMp ? "Infinite MP on" : "Infinite MP off", TestTargets("both"), p => "test mp " + (TestMp ? "on" : "off")); break;
@@ -1081,6 +1096,16 @@ namespace ConnectedHearts
                     object cv; string name = d.TryGetValue("cmd", out cv) && cv != null ? cv.ToString() : "";
                     if (name == "browse" || name == "closeUi") continue;
                     Log("Remote: " + name + (d.ContainsKey("action") ? " " + d["action"] : ""));
+                    if (name == "chtest")
+                    {
+                        // Any chtest command except the ones that start, inject or crash games; the answer goes to results\<file>_<pid>.json.
+                        object av, tv; string a = d.TryGetValue("args", out av) && av != null ? av.ToString().Trim() : "";
+                        string first = a.Split(' ')[0].ToLowerInvariant();
+                        if (a.Length == 0 || a.Contains("--pid") || new[] { "crash", "restart", "launch", "inject", "boot-load-save" }.Contains(first)) { Log("Remote: chtest " + first + " refused."); continue; }
+                        string target = d.TryGetValue("target", out tv) && tv != null ? tv.ToString() : "1";
+                        RunTest("chtest " + first, TestTargets(target), p => a, Path.Combine(testDir, "results", Path.GetFileNameWithoutExtension(f.Name) + "_{pid}.json"));
+                        continue;
+                    }
                     Handle(d, null);
                 }
                 catch (Exception ex) { Log("Remote command failed: " + ex.Message); }
