@@ -983,7 +983,7 @@ namespace ConnectedHearts
         {
             new TestSwitch { Id = "mirrorAll", Env = new[] { "KH2COOP_ENEMY_MIRROR_ALL" }, On = "1" },
             new TestSwitch { Id = "targetBoth", Env = new[] { "KH2COOP_ENEMY_TARGET_REMOTE" }, On = "1" },
-            new TestSwitch { Id = "mirrorBosses", Env = new[] { "KH2COOP_MIRROR_BOSSES", "KH2COOP_ENEMY_MIRROR_ALL" }, On = "1" },
+            new TestSwitch { Id = "nativeBosses", Env = new[] { "KH2COOP_MIRROR_BOSSES" }, On = "0" },  // bosses copy by default (20261019)
             new TestSwitch { Id = "fixEnemies", Env = new[] { "KH2COOP_ENEMY_POPULATION", "KH2COOP_ENEMY_POPULATION_SPAWN" }, On = "1" },
             new TestSwitch { Id = "ballOff", Env = new[] { "KH2COOP_BALL_SYNC" }, On = "0" },
             new TestSwitch { Id = "keepParty", Env = new[] { "KH2COOP_NO_COMPANION" }, On = "0" },
