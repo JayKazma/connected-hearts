@@ -1,2 +1,2 @@
-20261018.16
-Barbossa: a boss that moved before the friend's game saw it still pairs with the host's.
+20261018.17
+Lone-boss pairing kept through the boss's death.
