@@ -17,12 +17,12 @@ Read this first in a new chat. Updated with every dev build.
 - Launcher inbox: JSON files in `build\test\inbox` run like Test tab clicks; `build\test\activity.log` is the log.
 - `{"cmd":"chtest","args":"...","target":"1|2|both"}` runs bin\chtest.exe; answers land in `build\test\results`.
 - Helper scripts in `build\test`: q.py (send and read), boot.py start|load|connect, cycle.py, skip.py, hunt.py,
-  bosshp.py, probe.py, view.py (side-by-side capture), tt.py (Twilight Thorn approach), spam.py SECONDS [TARGET]
+  bosshp.py, probe.py, ard.py, cmp.py (boss side by side), death.py (timed defeat), kc.py/kt.py (grab watch), view.py (side-by-side capture), tt.py (Twilight Thorn approach), spam.py SECONDS [TARGET]
   (Cross/Triangle spam). device_bash calls stop at 45 s; split long steps.
 - Boss hits and boss HP changes have their own log budget ([hit]/[hp] lines with B_ names).
 
 ## Done and verified (2026-10-18, laptop solo test)
-- Test tab: warp (quick spots incl. Larxene, Lexaeus, Twilight Thorn, Axel I), god mode, infinite MP, refill, screenshots, mark, switches, save lock, revive tools, reconnect.
+- Test tab: warp (quick spots incl. Larxene, Lexaeus, Twilight Thorn, Axel I, Axel II), god mode, infinite MP, refill, screenshots, mark, switches, save lock, revive tools, reconnect.
 - Revive: downed instead of game over, hold-Triangle revive both ways, Revive now.
 - Enemy sync: targeting both players, copied enemies hit Sora 2, kills sync. Shadows/Neoshadows/Driller Moles
   are copied with their underground state (actor+0x120 bits 0x0A) and are hittable by the friend.
@@ -33,7 +33,11 @@ Read this first in a new chat. Updated with every dev build.
   (02/22 from save slot 3, LV1 Roxas; `boot.py load 1`) verified 2026-10-18: Game 2's hits became boss claims, the host
   applied them (HP 2 -> 0 from Game 2's last hit) and both games went to the after-fight cutscene together.
 - Fixed: crash dump on every game close (render worker std::thread destructor at exit).
-- Dev builds: Test tab > Co-op > Dev build; 20261018.13 on the PC. The zip carries its own build id.
+- Dev builds: Test tab > Co-op > Dev build; 20261018.14 on the PC. The zip carries its own build id.
+
+## Build note
+- The first build after a change can sit on EntityHook.cpp for 30+ minutes at full CPU; killing it and rerunning
+  the build compiles it in seconds. If EntityHook.cpp is still compiling after ~5 minutes, kill and rerun.
 
 ## Open
 1. Boss copying (Test switch "Copy the host's boss", KH2COOP_MIRROR_BOSSES=1): boss by boss, list in
@@ -50,6 +54,14 @@ Read this first in a new chat. Updated with every dev build.
    Events(m,b,e) checks (KH2FM-Mods-Num/GoA-ROM-Edition) and khbr's locations.yaml (spawn groups per room).
    With the copy on, the friend's player is rarely grabbed (the copy aims at the host's player); Key Counter and
    Lunarsault prompts were seen on the friend's game, their damage not yet checked.
+   Axel II (B_EX110, objectId 81, Basement Hall 02/14 programs 137; Data Axel = 213) verified 2026-10-18 with and
+   without copying, same checks as Axel I.
+   Shan Yu (Land of Dragons Palace Gate 08/09, btl 75, map/evt default; B_MU100 objectId 21 + falcon B_MU110
+   objectId 22, both type 3), tested with the Roxas save: both parts' HP and the friend's claims sync. Not finished:
+   after Shan Yu fell to 221 and the falcon to 10 the game held their HP on the host too (even a direct kill), so
+   the defeat wasn't reached; likely a scripted phase, maybe needing a Sora save.
+   build/test/ard.py [TARGET] lists the current room's map/btl/evt programs and their spawn groups (area data at
+   rva 0x2A0F828, Steam); khbr's locations.yaml says which group is the boss.
    Larxene's duplicates
    are made by her own AI on each game, so she stays uncopied. Struggle gauges (Lexaeus power) and reaction
    commands on Game 2 are still per game.
