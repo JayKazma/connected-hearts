@@ -24,7 +24,7 @@ Read this first in a new chat. Updated with every dev build.
 - Helper scripts are also kept in tools/test-helpers (copy into <install>\build\test); the laptop got them 10-19.
 
 ## Done and verified (2026-10-18, laptop solo test)
-- Test tab: warp (quick spots incl. Larxene, Lexaeus, Twilight Thorn, Axel I, Axel II, Shan Yu, Barbossa), god mode, infinite MP, refill, screenshots, mark, switches, save lock, revive tools, reconnect.
+- Test tab: warp (quick spots incl. Larxene, Lexaeus, Twilight Thorn, Axel I, Axel II, Shan Yu, Barbossa, Grim Reaper I and II), god mode, infinite MP, refill, screenshots, mark, switches, save lock, revive tools, reconnect.
 - Revive: downed instead of game over, hold-Triangle revive both ways, Revive now.
 - Enemy sync: targeting both players, copied enemies hit Sora 2, kills sync. Shadows/Neoshadows/Driller Moles
   are copied with their underground state (actor+0x120 bits 0x0A) and are hittable by the friend.
@@ -35,7 +35,7 @@ Read this first in a new chat. Updated with every dev build.
   (02/22 from save slot 3, LV1 Roxas; `boot.py load 1`) verified 2026-10-18: Game 2's hits became boss claims, the host
   applied them (HP 2 -> 0 from Game 2's last hit) and both games went to the after-fight cutscene together.
 - Fixed: crash dump on every game close (render worker std::thread destructor at exit).
-- Dev builds: Test tab > Co-op > Dev build; 20261018.18 on the PC. The zip carries its own build id.
+- Dev builds: Test tab > Co-op > Dev build; 20261019.1 on the laptop, 20261018.18 on the PC. The zip carries its own build id.
 
 ## Build note
 - The first build after a change can sit on EntityHook.cpp for 30+ minutes at full CPU; killing it and rerunning
@@ -70,6 +70,11 @@ Read this first in a new chat. Updated with every dev build.
    600). Fix: a lone boss pairs by object id when no spawn point matches (one host entry, one living local, same
    id; kept through death). After it: HP sync, the host's kill applied on the friend's game by its netId
    (established-death), both in the after-fight cutscene together. The friend's hits weren't landed (he hovers).
+   Grim Reaper I (B_CA050, objectId 1543, Black Pearl 10/12 map/btl 85) verified 2026-10-19 on the laptop with the
+   Port Royal save: HP sync, the friend's claims, the friend's last hit (4 -> 0), death on both. Both then sat on
+   a white screen (the warp has no end event, like Shan Yu btl-only). Grim Reaper II (same object, Harbor 10/01
+   map/btl 54): HP sync confirmed (host HP poked 510 -> 300, friend followed); he takes no damage outside his
+   medallion phase, so claims and defeat weren't reached.
    build/test/ard.py [TARGET] lists the current room's map/btl/evt programs and their spawn groups (area data at
    rva 0x2A0F828, Steam); khbr's locations.yaml says which group is the boss.
    Larxene's duplicates
