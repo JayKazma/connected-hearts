@@ -1,2 +1,2 @@
-20261019.1
-Quick spots for Grim Reaper I and II.
+20261019.2
+Bosses copy the host's boss by default (Larxene excluded); Test switch to keep each game's own boss.
