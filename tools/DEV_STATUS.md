@@ -35,15 +35,18 @@ Read this first in a new chat. Updated with every dev build.
   (02/22 from save slot 3, LV1 Roxas; `boot.py load 1`) verified 2026-10-18: Game 2's hits became boss claims, the host
   applied them (HP 2 -> 0 from Game 2's last hit) and both games went to the after-fight cutscene together.
 - Fixed: crash dump on every game close (render worker std::thread destructor at exit).
-- Dev builds: Test tab > Co-op > Dev build; 20261019.1 on the laptop, 20261018.18 on the PC. The zip carries its own build id.
+- Dev builds: Test tab > Co-op > Dev build; 20261019.2 on the laptop, 20261018.18 on the PC. The zip carries its own build id.
 
 ## Build note
 - The first build after a change can sit on EntityHook.cpp for 30+ minutes at full CPU; killing it and rerunning
   the build compiles it in seconds. If EntityHook.cpp is still compiling after ~5 minutes, kill and rerun.
 
 ## Open
-1. Boss copying (Test switch "Copy the host's boss", KH2COOP_MIRROR_BOSSES=1): boss by boss, list in
-   inject/src/EnemyMirrorPose.hpp kMirroredBosses. Lexaeus done (position, motion, hits, HP). Twilight Thorn
+1. Boss copying: ON by default since 20261019.2 for every boss (objentry types 3/12) except
+   kUncopiedBosses in inject/src/EnemyMirrorPose.hpp (Larxene). KH2COOP_MIRROR_BOSSES=0 / Test switch "Keep each
+   game's own boss" turns it off. Checked by default on the laptop: Barbossa follows the host exactly (he
+   didn't before). Spot-test only unusual bosses (several bodies, clones, phases, grabs); add misbehaving ones to
+   the uncopied list. History: boss by boss, the old list was Lexaeus done (position, motion, hits, HP). Twilight Thorn
    (candidate, 20261018.9): position, motion, hits, HP and defeat match; while a boss holds the local player
    (player+0x2B0 = the boss, a grab) the friend's own AI keeps it until it lets go, then the copy resumes. Not yet
    seen: Key Counter/Reversal on the friend's game during those grabs.
