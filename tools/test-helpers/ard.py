@@ -14,7 +14,7 @@ def run(args, wait=4):
 r = run("peek --rva 0x2A0F828:u64,0x717008:u8,0x717009:u8")
 s = r['samples'][0]; ard = int(s['0x2A0F828'], 16)
 print(f"world {s['0x717008']:02X} room {s['0x717009']:02X} area data at {ard:#x}")
-run(f"test dump {ard:#x} 0x200 1 100 ard_hdr.bin")
+run(f"test dump {ard:#x} 0x1000 1 100 ard_hdr.bin")
 hdr = open(os.path.join(root, 'ard_hdr.bin'), 'rb').read()
 n, base = struct.unpack_from('<II', hdr, 4)
 ents = []
