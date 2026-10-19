@@ -1,2 +1,2 @@
-20261018.15
-Crash handler: real dumps for stack overflows (the Game 2 clr.dll crash).
+20261018.16
+Barbossa: a boss that moved before the friend's game saw it still pairs with the host's.
