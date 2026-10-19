@@ -21,6 +21,8 @@ Read this first in a new chat. Updated with every dev build.
   (Cross/Triangle spam). device_bash calls stop at 45 s; split long steps.
 - Boss hits and boss HP changes have their own log budget ([hit]/[hp] lines with B_ names).
 
+- Helper scripts are also kept in tools/test-helpers (copy into <install>\build\test); the laptop got them 10-19.
+
 ## Done and verified (2026-10-18, laptop solo test)
 - Test tab: warp (quick spots incl. Larxene, Lexaeus, Twilight Thorn, Axel I, Axel II, Shan Yu, Barbossa), god mode, infinite MP, refill, screenshots, mark, switches, save lock, revive tools, reconnect.
 - Revive: downed instead of game over, hold-Triangle revive both ways, Revive now.
