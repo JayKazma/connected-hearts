@@ -1,1 +1,1 @@
-Host without a SteamID (your Steam friends can use Ask to Join on Discord). Discord status: correct player count, title screen picture. World map camera no longer freezes in co-op. Better crash logging.
+Bosses: HP, hits and defeat shared, and the boss moves the same on both screens (Twilight Thorn, Axel, Barbossa, Grim Reaper and more). Shadows that sink underground can be hit by both players. The friend's game ends a boss fight at the same moment as the host. Fixes a crash when closing the game. Both players need 0.1.4.
