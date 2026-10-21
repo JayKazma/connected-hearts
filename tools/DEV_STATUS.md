@@ -8,7 +8,7 @@ Read this first in a new chat. Updated with every dev build.
 - Install a dev build from the launcher: Test (top bar) > Co-op > Dev build > Get latest dev build. The games must be closed.
 
 ## Channels
-- Live (friends): `main` branch, version 0.1.3. Push there only with Sento's go-ahead.
+- Live (friends): `main` branch, version 0.1.4 (2026-10-20, same mod build as dev 20261019.2). Push there only with Sento's go-ahead.
 - Dev (Sento's machines, Test tab only): `dev` branch, `dev/build.txt` + `dev/connected-hearts-dev.zip`, built by
   `tools/make_dev.py`. A dev build is protocol 20; it doesn't connect to 0.1.3.
 - Mod source: JayKazma/connected-hearts-mod (`git push chmod HEAD:main`, only with go-ahead); local commits ahead of it.
@@ -91,4 +91,4 @@ Read this first in a new chat. Updated with every dev build.
    Co-op link dropped once while idle (10-18 17:43, host runtime "Input mailbox closed"); cause unknown.
 3. Drive Forms in co-op; Sora 2 shows the friend's keyblade; keyblade swap only visible to the switcher.
 4. Test tab: bring together, freeze, items, debug view, auto tests.
-5. Release 0.1.4 (go-ahead needed); website with the installer link; trim debug logs.
+5. Website with the installer link; trim debug logs.
