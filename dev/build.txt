@@ -1,2 +1,2 @@
-20261019.2
-Bosses copy the host's boss by default (Larxene excluded); Test switch to keep each game's own boss.
+20261024.1
+0.1.4 plus better crash capture (several records, full dump for execute faults). Connects to 0.1.4.
